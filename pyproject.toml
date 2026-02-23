@@ -1,0 +1,30 @@
+[project]
+name = "agent-arsenal"
+version = "0.1.0"
+description = "A global CLI tool for coding agents to use in development"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+arsenal = "agent_arsenal.main:cli"
+
+[build-system]
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+agent-arsenal = { workspace = true }
+
+[tool.uv]
+dev-dependencies = [
+    "watchfiles>=0.21.0",  # For hot reload
+    "pytest>=7.0.0",       # For testing
+]
+package = true
+
