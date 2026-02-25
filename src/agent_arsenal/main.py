@@ -6,12 +6,14 @@ import typer
 from rich.console import Console
 
 from agent_arsenal import __version__
+from agent_arsenal.config import get_command_directories
 from agent_arsenal.executor import CommandExecutor
 from agent_arsenal.registry import Command, CommandGroup, CommandRegistry
 
 # Get commands directory
 COMMANDS_DIR = Path(__file__).parent / "commands"
-registry = CommandRegistry(COMMANDS_DIR)
+external_dirs = get_command_directories()
+registry = CommandRegistry(COMMANDS_DIR, external_dirs)
 
 app = typer.Typer(
     name="arsenal",
@@ -21,6 +23,82 @@ app = typer.Typer(
 )
 
 console = Console()
+
+# Config command group
+config_app = typer.Typer(
+    name="config",
+    help="Manage configuration settings",
+    no_args_is_help=True,
+)
+app.add_typer(config_app, name="config")
+
+# External directories subcommand group under config
+external_dir_app = typer.Typer(
+    name="external-dir",
+    help="Manage external command directories",
+    no_args_is_help=True,
+)
+config_app.add_typer(external_dir_app, name="external-dir")
+
+
+@external_dir_app.command("add")
+def external_dir_add(path: str):
+    """Add an external command directory.
+
+    Args:
+        path: Path to the external command directory
+    """
+    from agent_arsenal.config import add_command_directory
+
+    path_obj = Path(path).expanduser().resolve()
+    result = add_command_directory(path_obj)
+
+    if result:
+        console.print(f"[green]Added:[/green] {path_obj}")
+    else:
+        console.print(f"[yellow]Already registered:[/yellow] {path_obj}")
+
+
+@external_dir_app.command("remove")
+def external_dir_remove(path: str):
+    """Remove an external command directory.
+
+    Args:
+        path: Path to the external command directory to remove
+    """
+    from agent_arsenal.config import remove_command_directory
+
+    path_obj = Path(path).expanduser().resolve()
+    result = remove_command_directory(path_obj)
+
+    if result:
+        console.print(f"[green]Removed:[/green] {path_obj}")
+    else:
+        console.print(f"[yellow]Not found:[/yellow] {path_obj}")
+
+
+@external_dir_app.command("list")
+def external_dir_list():
+    """List all registered external command directories."""
+    from agent_arsenal.config import list_command_directories
+
+    dirs = list_command_directories()
+
+    if not dirs:
+        console.print(
+            "[yellow]No external command directories registered.[/yellow]"
+        )
+        return
+
+    console.print("[bold]Registered command directories:[/bold]")
+    for d in dirs:
+        exists = "✓" if d.exists() else "✗"
+        status = (
+            f"[green]{exists}[/green]"
+            if d.exists()
+            else f"[red]{exists}[/red]"
+        )
+        console.print(f"  {status} {d}")
 
 
 def register_commands(typer_app: typer.Typer, group: CommandGroup):
@@ -47,7 +125,9 @@ def register_commands(typer_app: typer.Typer, group: CommandGroup):
                 if result.success:
                     console.print(result.output)
                 else:
-                    console.print(f"[bold red]Error:[/bold red] {result.error}")
+                    console.print(
+                        f"[bold red]Error:[/bold red] {result.error}"
+                    )
 
             return cmd_func
 
@@ -59,7 +139,7 @@ def register_commands(typer_app: typer.Typer, group: CommandGroup):
 
 
 # Initialize registry and build CLI tree
-root_group = registry.scan_directory()
+root_group = registry.scan_all()
 register_commands(app, root_group)
 
 
