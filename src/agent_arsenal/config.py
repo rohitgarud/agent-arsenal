@@ -60,16 +60,16 @@ def load_config() -> dict:
     config_path = get_config_path()
 
     if not config_path.exists():
-        return DEFAULT_CONFIG.copy()
+        return {"command_directories": []}
 
     try:
         content = config_path.read_text(encoding="utf-8")
     except PermissionError as e:
         logger.warning(f"Cannot read config file {config_path}: {e}")
-        return DEFAULT_CONFIG.copy()
+        return {"command_directories": []}
 
     if not content.strip():
-        return DEFAULT_CONFIG.copy()
+        return {"command_directories": []}
 
     try:
         config = json.loads(content)
@@ -77,7 +77,7 @@ def load_config() -> dict:
         logger.warning(
             f"Invalid JSON in config file {config_path}: {e}. Resetting to default."
         )
-        return DEFAULT_CONFIG.copy()
+        return {"command_directories": []}
 
     # Ensure command_directories exists
     if "command_directories" not in config:
