@@ -23,8 +23,11 @@ agent-arsenal = { workspace = true }
 
 [tool.uv]
 dev-dependencies = [
-    "watchfiles>=0.21.0",  # For hot reload
-    "pytest>=7.0.0",       # For testing
+    "watchfiles>=0.21.0", # For hot reload
+    "pytest>=7.0.0", # For testing
+    "pytest-xdist>=3.0.0", # Parallel tests (-n auto)
+    "pytest-cov>=4.0.0", # Coverage (test-cov target)
+    "git-changelog>=2.7.1",
 ]
 package = true
 
