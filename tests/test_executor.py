@@ -1,12 +1,10 @@
 """Tests for the executor module."""
 
-import pytest
 from pathlib import Path
 
 from agent_arsenal.executor import (
     CommandExecutor,
     CommandResult,
-    ExecutionType,
 )
 from agent_arsenal.registry import Command
 
@@ -40,7 +38,6 @@ Hello {name}!
 """)
 
         executor = CommandExecutor()
-        cmd = Command(name="test", path=cmd_file)
         result = executor.execute_prompt(cmd_file, {"name": "World"})
 
         assert result.success
@@ -58,7 +55,6 @@ Hello World!
 """)
 
         executor = CommandExecutor()
-        cmd = Command(name="test", path=cmd_file)
         result = executor.execute_prompt(cmd_file, {})
 
         assert result.success
@@ -130,10 +126,6 @@ executable_path: scripts/test.sh
 
     def test_execute_unknown_type(self):
         """Test executing with unknown type returns error."""
-        # This would require a proper command setup
-        # For now, test the execute method with invalid type returns error
-        executor = CommandExecutor()
-        
         # We can't easily test this without a real command file
         # But we can verify the result class works
         result = CommandResult(
