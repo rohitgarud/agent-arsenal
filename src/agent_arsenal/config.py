@@ -115,14 +115,33 @@ def save_config(config: dict) -> None:
         ) from e
 
 
+def get_user_commands_dir() -> Path:
+    """Get the default user commands directory.
+
+    Returns:
+        Path to ~/.arsenal/commands
+    """
+    return Path.home() / ".arsenal" / "commands"
+
+
 def get_command_directories() -> List[Path]:
     """Get the list of configured external command directories.
+
+    Always includes ~/.arsenal/commands if it exists (auto-discovery).
 
     Returns:
         List of Path objects for configured directories
     """
     config = load_config()
     dirs = config.get("command_directories", [])
+
+    # Auto-add ~/.arsenal/commands if it exists
+    user_commands_dir = get_user_commands_dir()
+    if user_commands_dir.exists() and user_commands_dir.is_dir():
+        # Add if not already in config
+        if not any(Path(d).resolve() == user_commands_dir for d in dirs):
+            dirs.append(str(user_commands_dir))
+
     return [Path(d) for d in dirs if d]
 
 

@@ -8,6 +8,7 @@ from agent_arsenal.config import (
     add_command_directory,
     get_command_directories,
     get_config_path,
+    get_user_commands_dir,
     list_command_directories,
     load_config,
     remove_command_directory,
@@ -185,3 +186,87 @@ class TestGetCommandDirectories:
         """Should return same as list_command_directories."""
         add_command_directory("/tmp/test")
         assert get_command_directories() == list_command_directories()
+
+
+class TestGetUserCommandsDir:
+    """Tests for get_user_commands_dir function."""
+
+    def test_returns_path_with_commands_suffix(self):
+        """Path should end with .arsenal/commands."""
+        path = get_user_commands_dir()
+        assert path.name == "commands"
+        assert ".arsenal" in str(path)
+
+    def test_returns_absolute_path(self):
+        """Should return an absolute path."""
+        path = get_user_commands_dir()
+        assert path.is_absolute()
+
+
+class TestUserCommandsAutoDiscovery:
+    """Tests for auto-discovery of ~/.arsenal/commands/."""
+
+    def test_includes_user_commands_dir_when_exists(
+        self, monkeypatch, temp_dir: Path
+    ):
+        """Should include ~/.arsenal/commands/ when it exists."""
+        user_commands = temp_dir / ".arsenal" / "commands"
+        user_commands.mkdir(parents=True)
+
+        # Mock Path.home() to return our temp_dir
+        monkeypatch.setattr(
+            "agent_arsenal.config.Path.home", lambda: temp_dir
+        )
+
+        dirs = get_command_directories()
+        assert user_commands in dirs
+
+    def test_does_not_include_when_not_exists(self, monkeypatch, temp_dir: Path):
+        """Should not include when directory doesn't exist."""
+        # Mock Path.home() to return our temp_dir
+        monkeypatch.setattr(
+            "agent_arsenal.config.Path.home", lambda: temp_dir
+        )
+
+        dirs = get_command_directories()
+        user_commands = temp_dir / ".arsenal" / "commands"
+        assert user_commands not in dirs
+
+    def test_no_duplicate_when_already_in_config(
+        self, monkeypatch, temp_dir: Path
+    ):
+        """Should not add duplicate if already in config."""
+        user_commands = temp_dir / ".arsenal" / "commands"
+        user_commands.mkdir(parents=True)
+
+        # Add to config first
+        add_command_directory(str(user_commands))
+
+        # Mock Path.home() to return our temp_dir
+        monkeypatch.setattr(
+            "agent_arsenal.config.Path.home", lambda: temp_dir
+        )
+
+        dirs = get_command_directories()
+        # Should only have one entry
+        assert dirs.count(user_commands) == 1
+
+    def test_user_commands_loaded_alongside_config_dirs(
+        self, monkeypatch, temp_dir: Path
+    ):
+        """Should load user commands alongside manually configured dirs."""
+        user_commands = temp_dir / ".arsenal" / "commands"
+        user_commands.mkdir(parents=True)
+
+        custom_dir = temp_dir / "custom-commands"
+        custom_dir.mkdir()
+        add_command_directory(str(custom_dir))
+
+        # Mock Path.home() to return our temp_dir
+        monkeypatch.setattr(
+            "agent_arsenal.config.Path.home", lambda: temp_dir
+        )
+
+        dirs = get_command_directories()
+        assert user_commands in dirs
+        assert custom_dir in dirs

@@ -1,9 +1,13 @@
 """Main CLI entry point for Agent Arsenal."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
+import click
 import typer
 from rich.console import Console
+from typing import Any, Dict, List
 
 from agent_arsenal import __version__
 from agent_arsenal.config import get_command_directories
@@ -101,6 +105,128 @@ def external_dir_list():
         console.print(f"  {status} {d}")
 
 
+# Storage for command info
+_command_info: Dict[str, Any] = {}
+
+
+def generate_command_function(cmd: Command, args_def: List[Dict[str, Any]]):
+    """Generate a command function using exec with proper parameter definitions.
+
+    Args:
+        cmd: Command object
+        args_def: List of argument definitions from frontmatter
+
+    Returns:
+        A command function with explicit parameters
+    """
+    from agent_arsenal.parser import parse_markdown_command
+
+    frontmatter, _ = parse_markdown_command(cmd.path)
+    description = frontmatter.get("description", f"Execute {cmd.name} command")
+
+    # Store command info for conversion
+    key = str(cmd.path)
+    _command_info[key] = {
+        arg.get("name", "").replace("-", "_"): {
+            "type": arg.get("type", "string"),
+            "default": arg.get("default"),
+        }
+        for arg in args_def
+    }
+
+    # Build function source code
+    if not args_def:
+        # No arguments
+        func_code = f'''
+def {cmd.name}():
+    """{description}"""
+    executor = CommandExecutor()
+    result = executor.execute(cmd, {{}})
+    if result.success:
+        console.print(result.output)
+    else:
+        console.print(f"[bold red]Error:[/bold red] {{result.error}}")
+'''
+    else:
+        # Build parameter list and option decorators
+        params = []
+        decorators = []
+        
+        for i, arg in enumerate(args_def):
+            arg_name = arg.get("name", "")
+            arg_type = arg.get("type", "string")
+            arg_default = arg.get("default")
+            arg_description = arg.get("description", "")
+            
+            param_name = arg_name.replace("-", "_")
+            opt_name = f"--{arg_name}"
+            
+            # Determine type
+            if arg_type == "boolean":
+                param_type = "bool"
+                default_val = "True" if arg_default else "False"
+            elif arg_type == "integer":
+                param_type = "int"
+                default_val = repr(arg_default) if arg_default is not None else "None"
+            else:
+                param_type = "str"
+                default_val = repr(arg_default) if arg_default is not None else '""'
+            
+            params.append(f"{param_name}: {param_type} = None")
+            
+            # Build Click option
+            if arg_type == "boolean":
+                decorators.append(
+                    f'@click.option("{opt_name}", is_flag=True, default={default_val}, help="{arg_description}", show_default=True)'
+                )
+            elif arg_type == "integer":
+                decorators.append(
+                    f'@click.option("{opt_name}", type=int, default={default_val}, help="{arg_description}", show_default=True)'
+                )
+            else:
+                decorators.append(
+                    f'@click.option("{opt_name}", default={default_val}, help="{arg_description}", show_default=True)'
+                )
+        
+        params_str = ", ".join(params)
+        decorators_str = "\n".join(reversed(decorators))
+        
+        # Build function body - build args dict manually
+        args_lines = []
+        for arg in args_def:
+            param_name = arg.get("name", "").replace("-", "_")
+            args_lines.append(f'    if {param_name} is not None:')
+            args_lines.append(f'        args["{param_name}"] = {param_name}')
+        
+        args_body = "\n".join(args_lines) if args_lines else "    pass"
+        
+        func_code = f'''
+{decorators_str}
+def {cmd.name}({params_str}):
+    """{description}"""
+    args = dict()
+{args_body}
+    
+    executor = CommandExecutor()
+    result = executor.execute(cmd, args)
+    if result.success:
+        console.print(result.output)
+    else:
+        console.print(f"[bold red]Error:[/bold red] {{result.error}}")
+'''
+
+    # Execute the code to create the function
+    namespace = {
+        "click": click,
+        "CommandExecutor": CommandExecutor,
+        "console": console,
+        "cmd": cmd,
+    }
+    exec(func_code, namespace)
+    
+    return namespace[cmd.name]
+
+
 def register_commands(typer_app: typer.Typer, group: CommandGroup):
     """Recursively register command groups and commands into Typer."""
 
@@ -116,26 +242,27 @@ def register_commands(typer_app: typer.Typer, group: CommandGroup):
 
     # Register leaf commands
     for cmd in group.commands:
+        from agent_arsenal.parser import parse_markdown_command
 
-        def create_cmd_func(command_obj: Command):
-            def cmd_func():
-                executor = CommandExecutor()
-                result = executor.execute(command_obj, {})
+        frontmatter, _ = parse_markdown_command(cmd.path)
+        args_def = frontmatter.get("args", [])
 
-                if result.success:
-                    console.print(result.output)
-                else:
-                    console.print(
-                        f"[bold red]Error:[/bold red] {result.error}"
-                    )
+        # Generate command function
+        cmd_func = generate_command_function(cmd, args_def)
+        
+        # Register with Typer
+        typer_app.command(
+            name=cmd.name, 
+            help=frontmatter.get("description", ""),
+        )(cmd_func)
 
-            return cmd_func
-
-        # Register the command name.
-        # Dynamic argument generation will be added in Phase 2
-        typer_app.command(name=cmd.name, help=f"Execute {cmd.name} command")(
-            create_cmd_func(cmd)
-        )
+        # Register aliases if present
+        aliases = frontmatter.get("aliases", [])
+        for alias in aliases:
+            typer_app.command(
+                name=alias,
+                help=frontmatter.get("description", ""),
+            )(cmd_func)
 
 
 # Initialize registry and build CLI tree
