@@ -18,7 +18,6 @@ class ExecutionType(Enum):
     PROMPT = "prompt"
     PYTHON = "python"
     BASH = "bash"
-    HYBRID = "hybrid"
     TEMPLATE = "template"
 
 
@@ -74,8 +73,6 @@ class CommandExecutor:
             return self.execute_python(command_obj, args)
         elif exec_type == "bash":
             return self.execute_bash(command_obj, args)
-        elif exec_type == "hybrid":
-            return self.execute_hybrid(command_obj.path, args)
         elif exec_type == "template":
             return self.execute_template(command_obj.path, args)
 
@@ -262,26 +259,6 @@ class CommandExecutor:
             return CommandResult(
                 success=False, output="", error=str(e)
             )
-
-    def execute_hybrid(self, command_path: Path, args: Dict[str, Any]) -> CommandResult:
-        """Execute hybrid command (Python + prompt).
-
-        Args:
-            command_path: Path to the command .md file
-            args: Command arguments
-
-        Returns:
-            CommandResult with combined output
-        """
-        # TODO: Implement hybrid execution
-        # - Execute Python function first
-        # - Use result to render instructions
-        # - Combine outputs
-        return CommandResult(
-            success=False,
-            output="",
-            error="Hybrid execution not yet implemented",
-        )
 
     def execute_template(
         self, command_path: Path, args: Dict[str, Any]

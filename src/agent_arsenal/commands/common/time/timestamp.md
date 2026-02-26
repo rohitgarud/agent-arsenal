@@ -4,6 +4,8 @@ description: Get current timestamp with optional format and timezone
 execution_type: executable
 executable_type: python
 executable_path: timestamp.handle_timestamp
+aliases:
+  - now
 args:
   - name: format
     type: string
@@ -27,17 +29,20 @@ Get the current timestamp with customizable format and timezone.
 
 ```bash
 # Default timestamp
-arsenal common timestamp
+arsenal common time timestamp
+
+# Or use 'now' alias
+arsenal common time now
 
 # Custom format
-arsenal common timestamp --format "%Y-%m-%d"
+arsenal common time timestamp --format "%Y-%m-%d"
 
 # Specific timezone
-arsenal common timestamp --tz UTC
-arsenal common timestamp --tz "America/New_York"
+arsenal common time timestamp --tz UTC
+arsenal common time timestamp --tz "America/New_York"
 
 # Unix timestamp
-arsenal common timestamp --unix
+arsenal common time timestamp --unix
 ```
 
 ## Arguments

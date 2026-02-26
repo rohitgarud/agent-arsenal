@@ -206,8 +206,8 @@ Hello World!
         executor = CommandExecutor()
 
         # Test with the timestamp handler
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/timestamp.md"
-        cmd = Command(name="timestamp", path=cmd_path, parent="common")
+        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/time/timestamp.md"
+        cmd = Command(name="timestamp", path=cmd_path, parent="common.time")
 
         result = executor.execute_python(cmd, {"format": "%Y-%m-%d"})
 
@@ -283,8 +283,8 @@ class TestExecuteIntegration:
 
     def test_execute_timestamp_command(self):
         """Test executing the timestamp command."""
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/timestamp.md"
-        cmd = Command(name="timestamp", path=cmd_path, parent="common")
+        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/time/timestamp.md"
+        cmd = Command(name="timestamp", path=cmd_path, parent="common.time")
 
         executor = CommandExecutor()
 
@@ -324,8 +324,8 @@ class TestExecuteIntegration:
 
     def test_execute_json_command(self):
         """Test executing the JSON command."""
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/code/json.md"
-        cmd = Command(name="json", path=cmd_path, parent="code")
+        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/code/json.md"
+        cmd = Command(name="json", path=cmd_path, parent="common.code")
 
         executor = CommandExecutor()
 
@@ -336,8 +336,8 @@ class TestExecuteIntegration:
 
     def test_execute_json_validate(self):
         """Test executing JSON with validate option."""
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/code/json.md"
-        cmd = Command(name="json", path=cmd_path, parent="code")
+        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/code/json.md"
+        cmd = Command(name="json", path=cmd_path, parent="common.code")
 
         executor = CommandExecutor()
 
