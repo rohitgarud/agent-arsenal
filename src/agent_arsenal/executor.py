@@ -295,12 +295,50 @@ class CommandExecutor:
         Returns:
             CommandResult with rendered template
         """
-        # TODO: Implement template execution (Phase 3)
-        return CommandResult(
-            success=False,
-            output="",
-            error="Template execution not yet implemented",
-        )
+        import os
+
+        try:
+            from agent_arsenal.parser import parse_markdown_command
+
+            # Parse the markdown file
+            frontmatter, body = parse_markdown_command(command_path)
+
+            # Build context from args + environment variables
+            context = {}
+
+            # Add command args to context
+            context.update(args)
+
+            # Add environment variables to context (uppercase keys)
+            for key, value in os.environ.items():
+                context[key.upper()] = value
+
+            # Add some useful built-in variables
+            context["COMMAND_PATH"] = str(command_path)
+            context["COMMAND_NAME"] = command_path.stem
+
+            # Render the template
+            from jinja2 import BaseLoader, Environment, TemplateSyntaxError, StrictUndefined
+
+            env = Environment(loader=BaseLoader(), undefined=StrictUndefined)
+            template = env.from_string(body)
+
+            rendered = template.render(**context)
+
+            return CommandResult(success=True, output=rendered)
+
+        except TemplateSyntaxError as e:
+            return CommandResult(
+                success=False,
+                output="",
+                error=f"Template syntax error: {e}",
+            )
+        except Exception as e:
+            return CommandResult(
+                success=False,
+                output="",
+                error=f"Template execution error: {e}",
+            )
 
 
 def render_instructions(

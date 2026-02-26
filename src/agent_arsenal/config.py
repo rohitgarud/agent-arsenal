@@ -228,3 +228,18 @@ def list_command_directories() -> List[Path]:
         List of Path objects for configured directories
     """
     return get_command_directories()
+
+
+def should_watch() -> bool:
+    """Check if watch mode should be enabled by default.
+
+    Checks the ARSENAL_WATCH environment variable.
+    Returns True for "1", "true", "yes" (case-insensitive).
+
+    Returns:
+        True if watch mode should be enabled by default
+    """
+    import os
+
+    watch_env = os.environ.get("ARSENAL_WATCH", "").lower()
+    return watch_env in ("1", "true", "yes")

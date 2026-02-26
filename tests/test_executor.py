@@ -23,6 +23,147 @@ class TestCommandResult:
         assert result.metadata["key"] == "value"
 
 
+class TestTemplateExecution:
+    """Tests for template execution (Jinja2)."""
+
+    def test_execute_template_variable_substitution(self, tmp_path):
+        """Test basic variable substitution with {{variable}}."""
+        cmd_file = tmp_path / "hello.md"
+        cmd_file.write_text("""---
+name: hello
+description: Hello template
+execution_type: template
+---
+Hello {{name}}!
+You are running on {{SYSTEM|default('Linux')}}.
+""")
+
+        executor = CommandExecutor()
+        result = executor.execute_template(cmd_file, {"name": "World"})
+
+        assert result.success
+        assert "Hello World!" in result.output
+        # Environment variable should be available
+        assert "You are running on" in result.output
+
+    def test_execute_template_conditional(self, tmp_path):
+        """Test conditional content with {% if %} blocks."""
+        cmd_file = tmp_path / "conditional.md"
+        cmd_file.write_text("""---
+name: conditional
+description: Conditional template
+execution_type: template
+---
+{% if show_message|default(false) %}
+This is a conditional message.
+{% endif %}
+{% if name|default('') %}
+Hello {{name}}!
+{% else %}
+Hello stranger!
+{% endif %}
+""")
+
+        executor = CommandExecutor()
+
+        # Test with show_message=True
+        result = executor.execute_template(cmd_file, {"show_message": True, "name": "World"})
+        assert result.success
+        assert "This is a conditional message." in result.output
+        assert "Hello World!" in result.output
+
+        # Test with show_message=False
+        result = executor.execute_template(cmd_file, {"show_message": False, "name": "World"})
+        assert result.success
+        assert "This is a conditional message." not in result.output
+
+        # Test with no name
+        result = executor.execute_template(cmd_file, {"show_message": True})
+        assert result.success
+        assert "Hello stranger!" in result.output
+
+    def test_execute_template_loop(self, tmp_path):
+        """Test loop constructs with {% for %} blocks."""
+        cmd_file = tmp_path / "loop.md"
+        cmd_file.write_text("""---
+name: loop
+description: Loop template
+execution_type: template
+---
+Items:
+{% for item in items %}
+- {{item}}
+{% endfor %}
+""")
+
+        executor = CommandExecutor()
+        result = executor.execute_template(cmd_file, {"items": ["apple", "banana", "cherry"]})
+
+        assert result.success
+        assert "- apple" in result.output
+        assert "- banana" in result.output
+        assert "- cherry" in result.output
+
+    def test_execute_template_missing_variable(self, tmp_path):
+        """Test handling of missing variables (renders as empty with default)."""
+        cmd_file = tmp_path / "missing.md"
+        cmd_file.write_text("""---
+name: missing
+description: Missing variable template
+execution_type: template
+---
+Hello {{name|default('there')}}!
+""")
+
+        executor = CommandExecutor()
+        result = executor.execute_template(cmd_file, {})
+
+        assert result.success
+        # Missing variable with default renders as default value
+        assert "Hello there!" in result.output
+
+    def test_execute_template_filters(self, tmp_path):
+        """Test Jinja2 filters."""
+        cmd_file = tmp_path / "filters.md"
+        cmd_file.write_text("""---
+name: filters
+description: Filters template
+execution_type: template
+---
+Lower: {{text|lower}}
+Upper: {{text|upper}}
+Length: {{text|length}}
+""")
+
+        executor = CommandExecutor()
+        result = executor.execute_template(cmd_file, {"text": "Hello World"})
+
+        assert result.success
+        assert "Lower: hello world" in result.output
+        assert "Upper: HELLO WORLD" in result.output
+        assert "Length: 11" in result.output
+
+    def test_execute_template_environment_vars(self, tmp_path):
+        """Test that environment variables are available in context."""
+
+        cmd_file = tmp_path / "env.md"
+        cmd_file.write_text("""---
+name: env
+description: Env template
+execution_type: template
+---
+HOME: {{HOME}}
+PATH: {{PATH}}
+""")
+
+        executor = CommandExecutor()
+        result = executor.execute_template(cmd_file, {})
+
+        assert result.success
+        # HOME should be available
+        assert result.output.startswith("HOME:")
+
+
 class TestCommandExecutor:
     """Tests for CommandExecutor class."""
 

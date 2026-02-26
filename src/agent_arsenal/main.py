@@ -36,6 +36,14 @@ config_app = typer.Typer(
 )
 app.add_typer(config_app, name="config")
 
+# State command group
+state_app = typer.Typer(
+    name="state",
+    help="Manage state (session, persistent, project scopes)",
+    no_args_is_help=True,
+)
+app.add_typer(state_app, name="state")
+
 # External directories subcommand group under config
 external_dir_app = typer.Typer(
     name="external-dir",
@@ -103,6 +111,119 @@ def external_dir_list():
             else f"[red]{exists}[/red]"
         )
         console.print(f"  {status} {d}")
+
+
+# State commands
+@app.command("state-get")
+def state_get(
+    key: str = typer.Argument(..., help="State key to retrieve"),
+    scope: str = typer.Option(
+        "session", "--scope", "-s", help="Scope: session, persistent, project"
+    ),
+):
+    """Get a value from state."""
+    from agent_arsenal.state import state
+
+    scope_enum = _parse_scope(scope)
+    value = state.get(key, scope_enum)
+
+    if value is None:
+        console.print(f"[yellow]Key '{key}' not found in {scope} scope[/yellow]")
+    else:
+        console.print(f"[bold]{key}:[/bold] {value}")
+
+
+@app.command("state-set")
+def state_set(
+    key: str = typer.Argument(..., help="State key to set"),
+    value: str = typer.Argument(..., help="Value to store"),
+    scope: str = typer.Option(
+        "session", "--scope", "-s", help="Scope: session, persistent, project"
+    ),
+    persist: bool = typer.Option(
+        False, "--persist", help="Persist to disk immediately (for persistent scope)"
+    ),
+):
+    """Set a value in state."""
+    from agent_arsenal.state import state
+
+    scope_enum = _parse_scope(scope)
+    state.set(key, value, scope_enum)
+
+    if persist and scope == "persistent":
+        state.persist()
+
+    console.print(f"[green]Set {key} = {value} in {scope} scope[/green]")
+
+
+@app.command("state-list")
+def state_list(
+    scope: str = typer.Option(
+        "session", "--scope", "-s", help="Scope: session, persistent, project"
+    ),
+):
+    """List all keys in state."""
+    from agent_arsenal.state import state
+
+    scope_enum = _parse_scope(scope)
+    keys = state.list_keys(scope_enum)
+
+    if not keys:
+        console.print(f"[yellow]No keys in {scope} scope[/yellow]")
+        return
+
+    console.print(f"[bold]Keys in {scope} scope:[/bold]")
+    for key in keys:
+        value = state.get(key, scope_enum)
+        console.print(f"  {key}: {value}")
+
+
+@app.command("state-clear")
+def state_clear(
+    scope: str = typer.Option(
+        "session", "--scope", "-s", help="Scope: session, persistent, project (default: all)"
+    ),
+    all_scopes: bool = typer.Option(
+        False, "--all", "-a", help="Clear all scopes"
+    ),
+):
+    """Clear state for a scope."""
+    from agent_arsenal.state import state
+
+    if all_scopes:
+        state.clear()
+        console.print("[green]Cleared all state scopes[/green]")
+    else:
+        scope_enum = _parse_scope(scope)
+        state.clear(scope_enum)
+        console.print(f"[green]Cleared {scope} scope[/green]")
+
+
+def _parse_scope(scope_str: str):
+    """Parse scope string to Scope enum.
+
+    Args:
+        scope_str: Scope string (session, persistent, project)
+
+    Returns:
+        Scope enum value
+
+    Raises:
+        typer.BadParameter: If scope is invalid
+    """
+    from agent_arsenal.state import Scope
+
+    scope_str = scope_str.lower()
+    if scope_str == "session":
+        return Scope.SESSION
+    elif scope_str == "persistent":
+        return Scope.PERSISTENT
+    elif scope_str == "project":
+        return Scope.PROJECT
+    else:
+        raise typer.BadParameter(
+            f"Invalid scope: {scope_str}. Must be session, persistent, or project"
+        )
 
 
 # Storage for command info
@@ -268,6 +389,45 @@ def register_commands(typer_app: typer.Typer, group: CommandGroup):
 # Initialize registry and build CLI tree
 root_group = registry.scan_all()
 register_commands(app, root_group)
+
+
+# Watch command - reloads commands on file changes
+@app.command("watch")
+def watch(
+    debounce: int = typer.Option(
+        500,
+        "--debounce",
+        "-d",
+        help="Debounce time in milliseconds",
+    ),
+):
+    """Watch command files for changes and reload automatically."""
+    from agent_arsenal.config import should_watch
+    from agent_arsenal.watcher import CommandWatcher
+
+    # Check if ARSENAL_WATCH env var is set
+    if not should_watch():
+        console.print(
+            "[yellow]Warning: ARSENAL_WATCH not set. "
+            "Use 'export ARSENAL_WATCH=1' to enable watch mode by default.[/yellow]"
+        )
+
+    console.print("[bold]Watching for changes in commands...[/bold]")
+    console.print("Press Ctrl+C to stop.")
+
+    # Create watcher
+    watcher = CommandWatcher(
+        commands_dir=COMMANDS_DIR,
+        reload_callback=lambda: registry.scan_all(),
+        debounce_ms=debounce,
+    )
+
+    # Run blocking watch
+    try:
+        watcher.watch()
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
 
 
 def version_callback(value: bool):
