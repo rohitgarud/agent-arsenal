@@ -5,13 +5,14 @@ Manages external command directory configuration stored in ~/.arsenal/settings.j
 
 import json
 import logging
+import os
 from pathlib import Path
-from typing import List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Default configuration
-DEFAULT_CONFIG: dict = {"command_directories": []}
+DEFAULT_CONFIG: dict[str, Any] = {"command_directories": []}
 
 
 def get_config_path() -> Path:
@@ -46,7 +47,7 @@ def _ensure_config_dir() -> Path:
     return config_dir
 
 
-def load_config() -> dict:
+def load_config() -> dict[str, Any]:
     """Load configuration from the config file.
 
     If the file doesn't exist or is invalid, returns default config.
@@ -65,17 +66,19 @@ def load_config() -> dict:
     try:
         content = config_path.read_text(encoding="utf-8")
     except PermissionError as e:
-        logger.warning(f"Cannot read config file {config_path}: {e}")
+        logger.warning("Cannot read config file %s: %s", config_path, e)
         return {"command_directories": []}
 
     if not content.strip():
         return {"command_directories": []}
 
     try:
-        config = json.loads(content)
+        config: dict[str, Any] = json.loads(content)
     except json.JSONDecodeError as e:
         logger.warning(
-            f"Invalid JSON in config file {config_path}: {e}. Resetting to default."
+            "Invalid JSON in config file %s: %s. Resetting to default.",
+            config_path,
+            e,
         )
         return {"command_directories": []}
 
@@ -93,7 +96,7 @@ def load_config() -> dict:
     return config
 
 
-def save_config(config: dict) -> None:
+def save_config(config: dict[str, Any]) -> None:
     """Save configuration to the config file.
 
     Args:
@@ -124,7 +127,7 @@ def get_user_commands_dir() -> Path:
     return Path.home() / ".arsenal" / "commands"
 
 
-def get_command_directories() -> List[Path]:
+def get_command_directories() -> list[Path]:
     """Get the list of configured external command directories.
 
     Always includes ~/.arsenal/commands if it exists (auto-discovery).
@@ -179,7 +182,7 @@ def add_command_directory(path: Path | str) -> bool:
     config["command_directories"] = dirs
     save_config(config)
 
-    logger.info(f"Added command directory: {path}")
+    logger.info("Added command directory: %s", path)
     return True
 
 
@@ -216,12 +219,12 @@ def remove_command_directory(path: Path | str) -> bool:
     if removed:
         config["command_directories"] = new_dirs
         save_config(config)
-        logger.info(f"Removed command directory: {path}")
+        logger.info("Removed command directory: %s", path)
 
     return removed
 
 
-def list_command_directories() -> List[Path]:
+def list_command_directories() -> list[Path]:
     """List all configured external command directories.
 
     Returns:
@@ -239,7 +242,5 @@ def should_watch() -> bool:
     Returns:
         True if watch mode should be enabled by default
     """
-    import os
-
     watch_env = os.environ.get("ARSENAL_WATCH", "").lower()
     return watch_env in ("1", "true", "yes")

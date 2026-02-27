@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
 
 
 @dataclass
@@ -11,7 +10,7 @@ class Command:
 
     name: str
     path: Path
-    parent: Optional[str] = None
+    parent: str | None = None
     is_group: bool = False
 
 
@@ -22,8 +21,8 @@ class CommandGroup:
     name: str
     path: Path
     description: str = ""
-    commands: List[Command] = field(default_factory=list)
-    subgroups: List["CommandGroup"] = field(default_factory=list)
+    commands: list[Command] = field(default_factory=list)
+    subgroups: list["CommandGroup"] = field(default_factory=list)
 
     def __post_init__(self):
         if self.commands is None:
@@ -36,7 +35,7 @@ class CommandRegistry:
     """Registry for discovering and managing commands from the commands/ folder."""
 
     def __init__(
-        self, commands_dir: Path, external_dirs: Optional[List[Path]] = None
+        self, commands_dir: Path, external_dirs: list[Path] | None = None
     ):
         """Initialize the registry with a commands directory.
 
@@ -46,11 +45,11 @@ class CommandRegistry:
         """
         self.commands_dir = commands_dir
         self.external_dirs = external_dirs or []
-        self.command_tree: Dict[str, CommandGroup] = {}
-        self._commands_cache: Dict[str, Command] = {}
+        self.command_tree: dict[str, CommandGroup] = {}
+        self._commands_cache: dict[str, Command] = {}
 
     def scan_directory(
-        self, current_dir: Optional[Path] = None, external_only: bool = False
+        self, current_dir: Path | None = None, external_only: bool = False
     ) -> CommandGroup:
         """Recursively scan commands directory and build command tree.
 
@@ -164,11 +163,11 @@ class CommandRegistry:
                             root_group.commands[-1]
                         )
 
-    def get_command(self, name: str) -> Optional[Command]:
+    def get_command(self, name: str) -> Command | None:
         """Lookup command by dotted path (e.g., 'database.connect')."""
         return self._commands_cache.get(name)
 
-    def list_commands(self, group: Optional[str] = None) -> List[Command]:
+    def list_commands(self, group: str | None = None) -> list[Command]:
         """List all commands, optionally filtered by group.
 
         Args:

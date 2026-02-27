@@ -13,14 +13,17 @@ def isolate_config(tmp_path, monkeypatch):
     config_file = tmp_path / ".arsenal" / "settings.json"
     config_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Import the config module fresh to ensure we patch the right thing
-    import agent_arsenal.config as config_module
-
     # Create a function that returns our config file
     def mock_get_config_path():
         return config_file
 
-    # Replace the function in the module
+    # Replace the function in the module where it's used (tests.test_config)
+    # This is needed because tests import get_config_path directly
+    monkeypatch.setattr("tests.test_config.get_config_path", mock_get_config_path)
+
+    # Also patch in the config module itself for functions that call get_config_path internally
+    import agent_arsenal.config as config_module
+
     monkeypatch.setattr(config_module, "get_config_path", mock_get_config_path)
 
     # Also need to patch in main module since it imports get_command_directories

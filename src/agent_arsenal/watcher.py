@@ -1,5 +1,6 @@
 """Hot reload functionality for command files (Phase 2)."""
 
+import logging
 import threading
 import time
 from pathlib import Path
@@ -7,6 +8,9 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
 
 if TYPE_CHECKING:
     from agent_arsenal.registry import CommandRegistry
+
+
+logger = logging.getLogger(__name__)
 
 
 def _md_filter(change: Any, path: str) -> bool:
@@ -88,15 +92,15 @@ class CommandWatcher:
                     # Call reload callback
                     try:
                         self.reload_callback()
-                    except Exception:
-                        pass  # Ignore errors in callback
+                    except Exception as e:
+                        logger.warning("Watcher callback error (non-fatal): %s", e)
 
                     # Check if we should stop
                     if self._stop_event.is_set():
                         break
 
-            except Exception:
-                pass  # Ignore watcher errors
+            except Exception as e:
+                logger.warning("Watcher error (non-fatal): %s", e)
             finally:
                 self._watching = False
 
@@ -111,8 +115,8 @@ class CommandWatcher:
         if self._generator:
             try:
                 self._generator.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Error closing watcher generator: %s", e)
             self._generator = None
 
         if self._thread:

@@ -1,10 +1,13 @@
 """State and context management for Agent Arsenal."""
 
 import json
+import logging
 import threading
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class Scope(Enum):
@@ -24,7 +27,7 @@ class ArsenalState:
     - PROJECT: Project-specific state
     """
 
-    _instance: Optional["ArsenalState"] = None
+    _instance: "ArsenalState" | None = None
     _lock = threading.Lock()
 
     def __new__(cls):
@@ -42,17 +45,17 @@ class ArsenalState:
         if self._initialized:
             return
 
-        self._session_state: Dict[str, Any] = {}
-        self._persistent_state: Dict[str, Any] = {}
-        self._project_state: Dict[str, Any] = {}
+        self._session_state: dict[str, Any] = {}
+        self._persistent_state: dict[str, Any] = {}
+        self._project_state: dict[str, Any] = {}
 
         self.state_dir = Path.home() / ".agent-arsenal"
         self.state_file = self.state_dir / "state.json"
-        self.project_state_file: Optional[Path] = None
+        self.project_state_file: Path | None = None
 
         self._initialized = True
 
-    def _get_state_dict(self, scope: Scope) -> Dict[str, Any]:
+    def _get_state_dict(self, scope: Scope) -> dict[str, Any]:
         """Get the state dictionary for a scope.
 
         Args:
@@ -73,7 +76,7 @@ class ArsenalState:
         else:
             raise ValueError(f"Unknown scope: {scope}")
 
-    def _get_nested_value(self, state_dict: Dict[str, Any], key: str) -> Any:
+    def _get_nested_value(self, state_dict: dict[str, Any], key: str) -> Any:
         """Get value from state, supporting dot notation for nested keys.
 
         Args:
@@ -96,7 +99,9 @@ class ArsenalState:
                 return None
         return value
 
-    def _set_nested_value(self, state_dict: Dict[str, Any], key: str, value: Any):
+    def _set_nested_value(
+        self, state_dict: dict[str, Any], key: str, value: Any
+    ):
         """Set value in state, supporting dot notation for nested keys.
 
         Args:
@@ -118,7 +123,9 @@ class ArsenalState:
 
         current[keys[-1]] = value
 
-    def _delete_nested_value(self, state_dict: Dict[str, Any], key: str) -> bool:
+    def _delete_nested_value(
+        self, state_dict: dict[str, Any], key: str
+    ) -> bool:
         """Delete value from state, supporting dot notation for nested keys.
 
         Args:
@@ -147,7 +154,9 @@ class ArsenalState:
             return True
         return False
 
-    def get(self, key: str, scope: Scope = Scope.SESSION, default: Any = None) -> Any:
+    def get(
+        self, key: str, scope: Scope = Scope.SESSION, default: Any = None
+    ) -> Any:
         """Retrieve value from state.
 
         Args:
@@ -217,7 +226,7 @@ class ArsenalState:
         except Exception as e:
             raise RuntimeError(f"Failed to restore state: {e}") from e
 
-    def clear(self, scope: Optional[Scope] = None):
+    def clear(self, scope: Scope | None = None):
         """Clear state for given scope (or all if None).
 
         Args:
@@ -250,7 +259,9 @@ class ArsenalState:
             # Load project-specific state if exists
             if self.project_state_file.exists():
                 try:
-                    content = self.project_state_file.read_text(encoding="utf-8")
+                    content = self.project_state_file.read_text(
+                        encoding="utf-8"
+                    )
                     if content.strip():
                         self._project_state = json.loads(content)
                 except json.JSONDecodeError:
@@ -277,7 +288,7 @@ class ArsenalState:
         """
         state_dict = self._get_state_dict(scope)
 
-        def _get_all_keys(d: Dict[str, Any], prefix: str = "") -> list[str]:
+        def _get_all_keys(d: dict[str, Any], prefix: str = "") -> list[str]:
             keys = []
             for key, value in d.items():
                 full_key = f"{prefix}.{key}" if prefix else key
@@ -295,5 +306,5 @@ state = ArsenalState()
 # Auto-restore persistent state on module load
 try:
     state.restore()
-except Exception:
-    pass  # Ignore errors during auto-restore
+except Exception as e:
+    logger.warning("Failed to restore persistent state: %s", e)

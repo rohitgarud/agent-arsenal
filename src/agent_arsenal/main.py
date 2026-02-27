@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import click
 import typer
 from rich.console import Console
-from typing import Any, Dict, List
 
 from agent_arsenal import __version__
 from agent_arsenal.config import get_command_directories
@@ -128,7 +128,9 @@ def state_get(
     value = state.get(key, scope_enum)
 
     if value is None:
-        console.print(f"[yellow]Key '{key}' not found in {scope} scope[/yellow]")
+        console.print(
+            f"[yellow]Key '{key}' not found in {scope} scope[/yellow]"
+        )
     else:
         console.print(f"[bold]{key}:[/bold] {value}")
 
@@ -141,7 +143,9 @@ def state_set(
         "session", "--scope", "-s", help="Scope: session, persistent, project"
     ),
     persist: bool = typer.Option(
-        False, "--persist", help="Persist to disk immediately (for persistent scope)"
+        False,
+        "--persist",
+        help="Persist to disk immediately (for persistent scope)",
     ),
 ):
     """Set a value in state."""
@@ -181,7 +185,10 @@ def state_list(
 @state_app.command("clear")
 def state_clear(
     scope: str = typer.Option(
-        "session", "--scope", "-s", help="Scope: session, persistent, project (default: all)"
+        "session",
+        "--scope",
+        "-s",
+        help="Scope: session, persistent, project (default: all)",
     ),
     all_scopes: bool = typer.Option(
         False, "--all", "-a", help="Clear all scopes"
@@ -227,10 +234,10 @@ def _parse_scope(scope_str: str):
 
 
 # Storage for command info
-_command_info: Dict[str, Any] = {}
+_command_info: dict[str, Any] = {}
 
 
-def generate_command_function(cmd: Command, args_def: List[Dict[str, Any]]):
+def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
     """Generate a command function using exec with proper parameter definitions.
 
     Args:
@@ -272,29 +279,33 @@ def {cmd.name}():
         # Build parameter list and option decorators
         params = []
         decorators = []
-        
+
         for i, arg in enumerate(args_def):
             arg_name = arg.get("name", "")
             arg_type = arg.get("type", "string")
             arg_default = arg.get("default")
             arg_description = arg.get("description", "")
-            
+
             param_name = arg_name.replace("-", "_")
             opt_name = f"--{arg_name}"
-            
+
             # Determine type
             if arg_type == "boolean":
                 param_type = "bool"
                 default_val = "True" if arg_default else "False"
             elif arg_type == "integer":
                 param_type = "int"
-                default_val = repr(arg_default) if arg_default is not None else "None"
+                default_val = (
+                    repr(arg_default) if arg_default is not None else "None"
+                )
             else:
                 param_type = "str"
-                default_val = repr(arg_default) if arg_default is not None else '""'
-            
+                default_val = (
+                    repr(arg_default) if arg_default is not None else '""'
+                )
+
             params.append(f"{param_name}: {param_type} = None")
-            
+
             # Build Click option
             if arg_type == "boolean":
                 decorators.append(
@@ -308,19 +319,19 @@ def {cmd.name}():
                 decorators.append(
                     f'@click.option("{opt_name}", default={default_val}, help="{arg_description}", show_default=True)'
                 )
-        
+
         params_str = ", ".join(params)
         decorators_str = "\n".join(reversed(decorators))
-        
+
         # Build function body - build args dict manually
         args_lines = []
         for arg in args_def:
             param_name = arg.get("name", "").replace("-", "_")
-            args_lines.append(f'    if {param_name} is not None:')
+            args_lines.append(f"    if {param_name} is not None:")
             args_lines.append(f'        args["{param_name}"] = {param_name}')
-        
+
         args_body = "\n".join(args_lines) if args_lines else "    pass"
-        
+
         func_code = f'''
 {decorators_str}
 def {cmd.name}({params_str}):
@@ -344,7 +355,7 @@ def {cmd.name}({params_str}):
         "cmd": cmd,
     }
     exec(func_code, namespace)
-    
+
     return namespace[cmd.name]
 
 
@@ -370,10 +381,10 @@ def register_commands(typer_app: typer.Typer, group: CommandGroup):
 
         # Generate command function
         cmd_func = generate_command_function(cmd, args_def)
-        
+
         # Register with Typer
         typer_app.command(
-            name=cmd.name, 
+            name=cmd.name,
             help=frontmatter.get("description", ""),
         )(cmd_func)
 
