@@ -114,7 +114,7 @@ def external_dir_list():
 
 
 # State commands
-@app.command("state-get")
+@state_app.command("get")
 def state_get(
     key: str = typer.Argument(..., help="State key to retrieve"),
     scope: str = typer.Option(
@@ -133,7 +133,7 @@ def state_get(
         console.print(f"[bold]{key}:[/bold] {value}")
 
 
-@app.command("state-set")
+@state_app.command("set")
 def state_set(
     key: str = typer.Argument(..., help="State key to set"),
     value: str = typer.Argument(..., help="Value to store"),
@@ -156,7 +156,7 @@ def state_set(
     console.print(f"[green]Set {key} = {value} in {scope} scope[/green]")
 
 
-@app.command("state-list")
+@state_app.command("list")
 def state_list(
     scope: str = typer.Option(
         "session", "--scope", "-s", help="Scope: session, persistent, project"
@@ -178,7 +178,7 @@ def state_list(
         console.print(f"  {key}: {value}")
 
 
-@app.command("state-clear")
+@state_app.command("clear")
 def state_clear(
     scope: str = typer.Option(
         "session", "--scope", "-s", help="Scope: session, persistent, project (default: all)"

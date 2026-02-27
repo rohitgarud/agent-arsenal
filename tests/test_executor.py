@@ -349,3 +349,167 @@ class TestExecuteIntegration:
         # Invalid JSON - returns success with error message in output
         result = executor.execute(cmd, {"input": '{"key":}', "validate": True})
         assert "Invalid JSON" in result.output or "Error" in result.output
+
+    def test_execute_node_version_command(self, tmp_path):
+        """Test executing the node_version command."""
+        # Use actual command file
+        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/code/node_version.md"
+        cmd = Command(name="node_version", path=cmd_path, parent="common.code")
+
+        executor = CommandExecutor()
+
+        result = executor.execute(cmd, {"full": False})
+        assert result.success
+        # Should return version like v22.11.0
+        assert result.output.startswith("v")
+        assert "." in result.output
+
+
+class TestNodeExecution:
+    """Tests for Node.js execution."""
+
+    def test_execute_node_inline(self, tmp_path):
+        """Test executing a node inline script."""
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: executable
+executable_type: node
+executable_inline: console.log("Hello " + process.env.NAME)
+---
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute_node(cmd, {"NAME": "World"})
+
+        assert result.success
+        assert "Hello World" in result.output
+
+    def test_execute_node_external(self, tmp_path):
+        """Test executing an external node script."""
+        # Create a test script
+        script_dir = tmp_path / "scripts"
+        script_dir.mkdir()
+        script_path = script_dir / "test.js"
+        script_path.write_text('console.log("Hello " + process.env.NAME)')
+
+        # Create command file
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: executable
+executable_type: node
+executable_path: scripts/test.js
+---
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute_node(cmd, {"NAME": "World"})
+
+        assert result.success
+        assert "Hello World" in result.output
+
+    def test_execute_node_missing_script(self, tmp_path):
+        """Test error when script not found."""
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: executable
+executable_type: node
+executable_path: scripts/missing.js
+---
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute_node(cmd, {})
+
+        assert not result.success
+        assert "not found" in result.error.lower()
+
+    def test_execute_node_via_execute_method(self, tmp_path):
+        """Test node execution through main execute() dispatcher."""
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: executable
+executable_type: node
+executable_inline: console.log("Hello " + process.env.NAME)
+---
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute(cmd, {"NAME": "World"})
+
+        assert result.success
+        assert "Hello World" in result.output
+
+    def test_execute_node_json_parse(self, tmp_path):
+        """Test node execution with JSON parsing."""
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: executable
+executable_type: node
+executable_inline: const data = JSON.parse(process.env.INPUT); console.log(data.key)
+---
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute(cmd, {"INPUT": '{"key":"value"}'})
+
+        assert result.success
+        assert "value" in result.output
+
+    def test_execute_node_missing_args(self, tmp_path):
+        """Test node execution with no args provided."""
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: executable
+executable_type: node
+executable_inline: console.log("Hello " + process.env.MY_NAME)
+---
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute_node(cmd, {})
+
+        assert result.success
+        assert "Hello undefined" in result.output
+
+    def test_execute_node_no_script_specified(self, tmp_path):
+        """Test node execution error when no script specified."""
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: executable
+executable_type: node
+---
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute_node(cmd, {})
+
+        assert not result.success
+        assert "no node.js script specified" in result.error.lower()

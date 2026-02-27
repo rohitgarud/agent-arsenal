@@ -127,10 +127,10 @@ def validate_frontmatter(frontmatter: Dict[str, Any]) -> Dict[str, Any]:
         
         if not executable_type:
             errors.append("execution_type 'executable' requires 'executable_type'")
-        elif executable_type not in ["python", "bash"]:
+        elif executable_type not in ["python", "bash", "node"]:
             errors.append(
                 f"Invalid executable_type: '{executable_type}'. "
-                f"Must be 'python' or 'bash'"
+                f"Must be 'python', 'bash', or 'node'"
             )
         
         # Python requires executable_path
@@ -148,6 +148,17 @@ def validate_frontmatter(frontmatter: Dict[str, Any]) -> Dict[str, Any]:
             if not has_path and not has_inline:
                 errors.append(
                     "executable_type 'bash' requires either 'executable_path' "
+                    "or 'executable_inline'"
+                )
+        
+        # Node requires either executable_path or executable_inline
+        if executable_type == "node":
+            has_path = bool(frontmatter.get("executable_path"))
+            has_inline = bool(frontmatter.get("executable_inline"))
+            
+            if not has_path and not has_inline:
+                errors.append(
+                    "executable_type 'node' requires either 'executable_path' "
                     "or 'executable_inline'"
                 )
     
@@ -194,9 +205,9 @@ def get_handler_info(frontmatter: Dict[str, Any]) -> Dict[str, Any]:
         
     Returns:
         Dictionary with handler information:
-        - type: 'prompt', 'python', 'bash'
-        - path: handler module path (for python)
-        - inline: inline script (for bash)
+        - type: 'prompt', 'python', 'bash', 'node', 'template'
+        - path: handler module path (for python, node) or script path (for bash, node)
+        - inline: inline script (for bash, node)
     """
     execution_type = frontmatter.get("execution_type", "prompt")
     
@@ -214,6 +225,12 @@ def get_handler_info(frontmatter: Dict[str, Any]) -> Dict[str, Any]:
         elif executable_type == "bash":
             return {
                 "type": "bash",
+                "path": frontmatter.get("executable_path", ""),
+                "inline": frontmatter.get("executable_inline", ""),
+            }
+        elif executable_type == "node":
+            return {
+                "type": "node",
                 "path": frontmatter.get("executable_path", ""),
                 "inline": frontmatter.get("executable_inline", ""),
             }

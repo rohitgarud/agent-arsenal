@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from dataclasses import dataclass
 from enum import Enum
@@ -75,6 +76,8 @@ class CommandExecutor:
             return self.execute_bash(command_obj, args)
         elif exec_type == "template":
             return self.execute_template(command_obj.path, args)
+        elif exec_type == "node":
+            return self.execute_node(command_obj, args)
 
         return CommandResult(
             success=False,
@@ -196,7 +199,8 @@ class CommandExecutor:
             inline_script = handler_info.get("inline", "")
             
             # Prepare environment variables from args
-            env = {}
+            # Start with system environment to ensure PATH is available
+            env = os.environ.copy()
             for key, value in args.items():
                 # Convert key to uppercase for environment variable names
                 env_key = key.upper()
@@ -239,6 +243,103 @@ class CommandExecutor:
                     success=False,
                     output="",
                     error="No bash script specified (need executable_path or executable_inline)",
+                )
+            
+            # Combine stdout and stderr
+            output = result.stdout
+            if result.stderr:
+                output += f"\n{result.stderr}" if output else result.stderr
+            
+            if result.returncode != 0:
+                return CommandResult(
+                    success=False,
+                    output=output,
+                    error=f"Script exited with code {result.returncode}",
+                )
+            
+            return CommandResult(success=True, output=output.strip())
+            
+        except Exception as e:
+            return CommandResult(
+                success=False, output="", error=str(e)
+            )
+
+    def execute_node(self, command_obj: "Command", args: Dict[str, Any]) -> CommandResult:
+        """Execute Node.js script command.
+
+        Args:
+            command_obj: Command object
+            args: Command arguments (passed as environment variables)
+
+        Returns:
+            CommandResult with script output
+        """
+        from agent_arsenal.parser import parse_markdown_command, get_handler_info
+
+        try:
+            frontmatter, _ = parse_markdown_command(command_obj.path)
+            handler_info = get_handler_info(frontmatter)
+            
+            script_path = handler_info.get("path", "")
+            inline_script = handler_info.get("inline", "")
+            
+            import subprocess
+
+            # Check for Node.js availability first
+            node_check = subprocess.run(
+                ["node", "--version"],
+                capture_output=True,
+                text=True,
+            )
+            if node_check.returncode != 0:
+                return CommandResult(
+                    success=False,
+                    output="",
+                    error="Node.js is not installed or not in PATH",
+                )
+            
+            # Prepare environment variables from args
+            # Start with system environment to ensure PATH is available
+            env = os.environ.copy()
+            for key, value in args.items():
+                env_key = key.upper()
+                env[env_key] = str(value)
+            
+            if inline_script:
+                # Execute inline script
+                result = subprocess.run(
+                    ["node", "-e", inline_script],
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                )
+            elif script_path:
+                # Execute external script
+                script_dir = command_obj.path.parent
+                full_script_path = script_dir / script_path
+                
+                if not full_script_path.exists():
+                    # Try from handlers directory
+                    full_script_path = script_dir / "handlers" / script_path
+                
+                if not full_script_path.exists():
+                    return CommandResult(
+                        success=False,
+                        output="",
+                        error=f"Script not found: {script_path}",
+                    )
+                
+                result = subprocess.run(
+                    ["node", str(full_script_path)],
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                )
+            else:
+                return CommandResult(
+                    success=False,
+                    output="",
+                    error="No Node.js script specified (need executable_path or executable_inline)",
                 )
             
             # Combine stdout and stderr
