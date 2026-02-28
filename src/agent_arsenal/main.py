@@ -12,6 +12,7 @@ from agent_arsenal import __version__
 from agent_arsenal.config import get_command_directories
 from agent_arsenal.executor import CommandExecutor
 from agent_arsenal.registry import Command, CommandGroup, CommandRegistry
+from agent_arsenal.config import load_sandbox_config, save_sandbox_config
 
 # Lazy initialization for registry
 _registry: CommandRegistry | None = None
@@ -125,6 +126,96 @@ def external_dir_list():
         exists = "✓" if d.exists() else "✗"
         status = f"[green]{exists}[/green]" if d.exists() else f"[red]{exists}[/red]"
         console.print(f"  {status} {d}")
+
+
+# Sandbox subcommand group under config
+sandbox_app = typer.Typer(
+    name="sandbox",
+    help="Manage sandbox configuration",
+    no_args_is_help=True,
+)
+config_app.add_typer(sandbox_app, name="sandbox")
+
+
+@sandbox_app.command("show")
+def sandbox_show():
+    """Display current sandbox configuration."""
+    config = load_sandbox_config()
+    console.print("[bold]Sandbox Configuration:[/bold]")
+    console.print(f"  Enabled: {config.enabled}")
+    console.print(f"  Timeout: {config.timeout_seconds}s")
+    console.print("  Default Permissions:")
+    perms = config.default_permissions
+    console.print(f"    allow_read: {perms.allow_read or '[]'}")
+    console.print(f"    allow_write: {perms.allow_write or '[]'}")
+    console.print(f"    allow_net: {perms.allow_net}")
+    console.print(f"    allow_env: {perms.allow_env or '[]'}")
+    console.print(f"    allow_run: {perms.allow_run}")
+
+
+@sandbox_app.command("set-timeout")
+def sandbox_set_timeout(seconds: int = typer.Argument(..., help="Timeout in seconds")):
+    """Set sandbox timeout in seconds."""
+    config = load_sandbox_config()
+    config.timeout_seconds = seconds
+    save_sandbox_config(config)
+    console.print(f"[green]Sandbox timeout set to {seconds} seconds[/green]")
+
+
+@sandbox_app.command("set-permissions")
+def sandbox_set_permissions(
+    allow_read: str | None = typer.Option(
+        None, "--allow-read", help="Comma-separated list of allowed read paths"
+    ),
+    allow_write: str | None = typer.Option(
+        None, "--allow-write", help="Comma-separated list of allowed write paths"
+    ),
+    allow_net: bool | None = typer.Option(
+        None, "--allow-net", help="Allow network access"
+    ),
+    allow_env: str | None = typer.Option(
+        None, "--allow-env", help="Comma-separated list of allowed environment variables"
+    ),
+    allow_run: bool | None = typer.Option(
+        None, "--allow-run", help="Allow subprocess spawning"
+    ),
+):
+    """Set sandbox default permissions."""
+    config = load_sandbox_config()
+    perms = config.default_permissions
+
+    if allow_read is not None:
+        perms.allow_read = [p.strip() for p in allow_read.split(",") if p.strip()]
+    if allow_write is not None:
+        perms.allow_write = [p.strip() for p in allow_write.split(",") if p.strip()]
+    if allow_net is not None:
+        perms.allow_net = allow_net
+    if allow_env is not None:
+        perms.allow_env = [e.strip() for e in allow_env.split(",") if e.strip()]
+    if allow_run is not None:
+        perms.allow_run = allow_run
+
+    config.default_permissions = perms
+    save_sandbox_config(config)
+    console.print("[green]Sandbox permissions updated[/green]")
+
+
+@sandbox_app.command("enable")
+def sandbox_enable():
+    """Enable sandbox (default)."""
+    config = load_sandbox_config()
+    config.enabled = True
+    save_sandbox_config(config)
+    console.print("[green]Sandbox enabled[/green]")
+
+
+@sandbox_app.command("disable")
+def sandbox_disable():
+    """Disable sandbox globally."""
+    config = load_sandbox_config()
+    config.enabled = False
+    save_sandbox_config(config)
+    console.print("[green]Sandbox disabled[/green]")
 
 
 # State commands
