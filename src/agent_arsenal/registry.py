@@ -167,6 +167,18 @@ class CommandRegistry:
         """Lookup command by dotted path (e.g., 'database.connect')."""
         return self._commands_cache.get(name)
 
+    def refresh(self) -> None:
+        """Refresh the command cache by re-scanning directories.
+
+        This clears the internal cache and re-discovers all commands,
+        useful for when commands have been added or removed while
+        the application is running.
+        """
+        self._commands_cache.clear()
+        self.command_tree.clear()
+        # Re-scan to populate the cache
+        self.scan_all()
+
     def list_commands(self, group: str | None = None) -> list[Command]:
         """List all commands, optionally filtered by group.
 

@@ -191,6 +191,102 @@ class CommandExecutor:
         except Exception as e:
             return CommandResult(success=False, output="", error=str(e))
 
+    def _execute_subprocess(
+        self,
+        command: "Command",
+        args: dict[str, Any],
+        runtime: str,
+        script_path: str | None = None,
+        inline_script: str | None = None,
+    ) -> CommandResult:
+        """Common subprocess execution logic for bash, node, etc.
+
+        Args:
+            command: Command object
+            args: Command arguments (passed as environment variables)
+            runtime: Runtime to use (e.g., "bash", "node")
+            script_path: Path to external script file
+            inline_script: Inline script to execute
+
+        Returns:
+            CommandResult with script output
+        """
+        # Check runtime availability first
+        check = subprocess.run(
+            [runtime, "--version"],
+            capture_output=True,
+            text=True,
+        )
+        if check.returncode != 0:
+            return CommandResult(
+                success=False,
+                output="",
+                error=f"{runtime} is not installed or not in PATH",
+            )
+
+        # Prepare environment variables from args
+        # Start with system environment to ensure PATH is available
+        env = os.environ.copy()
+        for key, value in args.items():
+            # Convert key to uppercase for environment variable names
+            env_key = key.upper()
+            # Convert value to string
+            env[env_key] = str(value)
+
+        # Determine script source and command
+        if inline_script:
+            # Different runtimes use different flags for inline scripts
+            if runtime == "bash":
+                cmd = [runtime, "-c", inline_script]
+            else:
+                # node, python, etc. use -e flag
+                cmd = [runtime, "-e", inline_script]
+        elif script_path:
+            # Resolve script path relative to command file
+            script_dir = command.path.parent
+            full_script_path = script_dir / script_path
+
+            if not full_script_path.exists():
+                # Try from handlers directory
+                full_script_path = script_dir / "handlers" / script_path
+
+            if not full_script_path.exists():
+                return CommandResult(
+                    success=False,
+                    output="",
+                    error=f"Script not found: {script_path}",
+                )
+
+            cmd = [runtime, str(full_script_path)]
+        else:
+            return CommandResult(
+                success=False,
+                output="",
+                error=f"No {runtime if runtime != 'node' else 'node.js'} script specified (need executable_path or executable_inline)",
+            )
+
+        # Execute the script
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        # Combine stdout and stderr
+        output = result.stdout
+        if result.stderr:
+            output += f"\n{result.stderr}" if output else result.stderr
+
+        if result.returncode != 0:
+            return CommandResult(
+                success=False,
+                output=output,
+                error=f"Script exited with code {result.returncode}",
+            )
+
+        return CommandResult(success=True, output=output.strip())
+
     def execute_bash(
         self, command_obj: "Command", args: dict[str, Any]
     ) -> CommandResult:
@@ -215,66 +311,13 @@ class CommandExecutor:
             script_path = handler_info.get("path", "")
             inline_script = handler_info.get("inline", "")
 
-            # Prepare environment variables from args
-            # Start with system environment to ensure PATH is available
-            env = os.environ.copy()
-            for key, value in args.items():
-                # Convert key to uppercase for environment variable names
-                env_key = key.upper()
-                # Convert value to string
-                env[env_key] = str(value)
-
-            if inline_script:
-                # Execute inline script
-                result = subprocess.run(
-                    ["bash", "-c", inline_script],
-                    capture_output=True,
-                    text=True,
-                    env=env,
-                )
-            elif script_path:
-                # Execute external script
-                # Resolve script path relative to command file
-                script_dir = command_obj.path.parent
-                full_script_path = script_dir / script_path
-
-                if not full_script_path.exists():
-                    # Try from handlers directory
-                    full_script_path = script_dir / "handlers" / script_path
-
-                if not full_script_path.exists():
-                    return CommandResult(
-                        success=False,
-                        output="",
-                        error=f"Script not found: {script_path}",
-                    )
-
-                result = subprocess.run(
-                    ["bash", str(full_script_path)],
-                    capture_output=True,
-                    text=True,
-                    env=env,
-                )
-            else:
-                return CommandResult(
-                    success=False,
-                    output="",
-                    error="No bash script specified (need executable_path or executable_inline)",
-                )
-
-            # Combine stdout and stderr
-            output = result.stdout
-            if result.stderr:
-                output += f"\n{result.stderr}" if output else result.stderr
-
-            if result.returncode != 0:
-                return CommandResult(
-                    success=False,
-                    output=output,
-                    error=f"Script exited with code {result.returncode}",
-                )
-
-            return CommandResult(success=True, output=output.strip())
+            return self._execute_subprocess(
+                command_obj,
+                args,
+                "bash",
+                script_path=script_path if script_path else None,
+                inline_script=inline_script if inline_script else None,
+            )
 
         except Exception as e:
             return CommandResult(success=False, output="", error=str(e))
@@ -303,78 +346,13 @@ class CommandExecutor:
             script_path = handler_info.get("path", "")
             inline_script = handler_info.get("inline", "")
 
-            import subprocess
-
-            # Check for Node.js availability first
-            node_check = subprocess.run(
-                ["node", "--version"],
-                capture_output=True,
-                text=True,
+            return self._execute_subprocess(
+                command_obj,
+                args,
+                "node",
+                script_path=script_path if script_path else None,
+                inline_script=inline_script if inline_script else None,
             )
-            if node_check.returncode != 0:
-                return CommandResult(
-                    success=False,
-                    output="",
-                    error="Node.js is not installed or not in PATH",
-                )
-
-            # Prepare environment variables from args
-            # Start with system environment to ensure PATH is available
-            env = os.environ.copy()
-            for key, value in args.items():
-                env_key = key.upper()
-                env[env_key] = str(value)
-
-            if inline_script:
-                # Execute inline script
-                result = subprocess.run(
-                    ["node", "-e", inline_script],
-                    capture_output=True,
-                    text=True,
-                    env=env,
-                )
-            elif script_path:
-                # Execute external script
-                script_dir = command_obj.path.parent
-                full_script_path = script_dir / script_path
-
-                if not full_script_path.exists():
-                    # Try from handlers directory
-                    full_script_path = script_dir / "handlers" / script_path
-
-                if not full_script_path.exists():
-                    return CommandResult(
-                        success=False,
-                        output="",
-                        error=f"Script not found: {script_path}",
-                    )
-
-                result = subprocess.run(
-                    ["node", str(full_script_path)],
-                    capture_output=True,
-                    text=True,
-                    env=env,
-                )
-            else:
-                return CommandResult(
-                    success=False,
-                    output="",
-                    error="No Node.js script specified (need executable_path or executable_inline)",
-                )
-
-            # Combine stdout and stderr
-            output = result.stdout
-            if result.stderr:
-                output += f"\n{result.stderr}" if output else result.stderr
-
-            if result.returncode != 0:
-                return CommandResult(
-                    success=False,
-                    output=output,
-                    error=f"Script exited with code {result.returncode}",
-                )
-
-            return CommandResult(success=True, output=output.strip())
 
         except Exception as e:
             return CommandResult(success=False, output="", error=str(e))

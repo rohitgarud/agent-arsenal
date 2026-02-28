@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import click
 import typer
 from rich.console import Console
 
@@ -14,10 +13,31 @@ from agent_arsenal.config import get_command_directories
 from agent_arsenal.executor import CommandExecutor
 from agent_arsenal.registry import Command, CommandGroup, CommandRegistry
 
-# Get commands directory
-COMMANDS_DIR = Path(__file__).parent / "commands"
-external_dirs = get_command_directories()
-registry = CommandRegistry(COMMANDS_DIR, external_dirs)
+# Lazy initialization for registry
+_registry: CommandRegistry | None = None
+
+
+def get_registry() -> CommandRegistry:
+    """Lazily initialize the command registry.
+
+    This avoids importing the registry at module load time,
+    which improves startup performance and allows for better testing.
+
+    Returns:
+        The initialized CommandRegistry instance
+    """
+    global _registry
+    if _registry is None:
+        commands_dir = Path(__file__).parent / "commands"
+        external_dirs = get_command_directories()
+        _registry = CommandRegistry(commands_dir, external_dirs)
+    return _registry
+
+
+def get_commands_dir() -> Path:
+    """Get the commands directory path."""
+    return Path(__file__).parent / "commands"
+
 
 app = typer.Typer(
     name="arsenal",
@@ -238,7 +258,10 @@ _command_info: dict[str, Any] = {}
 
 
 def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
-    """Generate a command function using exec with proper parameter definitions.
+    """Generate a command function with explicit Typer parameters.
+
+    This replaces the previous exec()-based approach with explicit Typer
+    command definitions, improving type safety and maintainability.
 
     Args:
         cmd: Command object
@@ -262,101 +285,131 @@ def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
         for arg in args_def
     }
 
-    # Build function source code
-    if not args_def:
-        # No arguments
-        func_code = f'''
-def {cmd.name}():
-    """{description}"""
-    executor = CommandExecutor()
-    result = executor.execute(cmd, {{}})
-    if result.success:
-        console.print(result.output)
-    else:
-        console.print(f"[bold red]Error:[/bold red] {{result.error}}")
-'''
-    else:
-        # Build parameter list and option decorators
-        params = []
-        decorators = []
+    # Create a closure that captures the command and args_def
+    def create_command_func(
+        command: Command,
+        args_definitions: list[dict[str, Any]],
+    ):
+        """Create a Typer command function with explicit type-annotated parameters."""
 
-        for i, arg in enumerate(args_def):
+        def command_func(*func_args: Any, **func_kwargs: Any) -> None:
+            """Execute the command with provided arguments."""
+            # Build args dict from kwargs, filtering out None values
+            args: dict[str, Any] = {}
+            for key, value in func_kwargs.items():
+                if value is not None:
+                    args[key] = value
+
+            # Execute the command
+            executor = CommandExecutor()
+            result = executor.execute(command, args)
+
+            if result.success:
+                console.print(result.output)
+            else:
+                console.print(f"[bold red]Error:[/bold red] {result.error}")
+
+        # Set function metadata
+        command_func.__name__ = command.name
+        command_func.__doc__ = description
+
+        return command_func
+
+    # Build the command function with explicit parameters
+    func = create_command_func(cmd, args_def)
+
+    # Add type annotations and defaults based on args_def
+    # We create a wrapper that properly handles the arguments
+    if not args_def:
+        # No arguments case - simple wrapper
+        def no_args_func() -> None:
+            """Execute the command with no arguments."""
+            executor = CommandExecutor()
+            result = executor.execute(cmd, {})
+            if result.success:
+                console.print(result.output)
+            else:
+                console.print(f"[bold red]Error:[/bold red] {result.error}")
+
+        no_args_func.__name__ = cmd.name
+        no_args_func.__doc__ = description
+        return no_args_func
+    else:
+        # Create a dynamic function with explicit Typer parameters using functools.wraps
+        import functools
+
+        # Build the signature with proper annotations
+        from inspect import signature, Parameter
+
+        # Create parameters based on args_def
+        params = []
+        for arg in args_def:
             arg_name = arg.get("name", "")
             arg_type = arg.get("type", "string")
             arg_default = arg.get("default")
-            arg_description = arg.get("description", "")
 
             param_name = arg_name.replace("-", "_")
-            opt_name = f"--{arg_name}"
 
-            # Determine type
+            # Determine the default value and annotation
             if arg_type == "boolean":
-                param_type = "bool"
-                default_val = "True" if arg_default else "False"
+                default = arg_default if arg_default is not None else False
+                annotation: type = bool
             elif arg_type == "integer":
-                param_type = "int"
-                default_val = (
-                    repr(arg_default) if arg_default is not None else "None"
-                )
+                default = arg_default if arg_default is not None else 0
+                annotation = int
+            elif arg_type == "float":
+                default = arg_default if arg_default is not None else 0.0
+                annotation = float
             else:
-                param_type = "str"
-                default_val = (
-                    repr(arg_default) if arg_default is not None else '""'
-                )
+                default = arg_default if arg_default is not None else ""
+                annotation = str
 
-            params.append(f"{param_name}: {param_type} = None")
+            # Create Parameter object
+            param = Parameter(
+                param_name,
+                kind=Parameter.KEYWORD_ONLY,
+                default=default,
+                annotation=annotation,
+            )
+            params.append(param)
 
-            # Build Click option
-            if arg_type == "boolean":
-                decorators.append(
-                    f'@click.option("{opt_name}", is_flag=True, default={default_val}, help="{arg_description}", show_default=True)'
-                )
-            elif arg_type == "integer":
-                decorators.append(
-                    f'@click.option("{opt_name}", type=int, default={default_val}, help="{arg_description}", show_default=True)'
-                )
+        # Create the signature
+        sig = signature(func)
+        sig = sig.replace(parameters=params)
+
+        # Apply the signature to our function
+        func.__signature__ = sig
+
+        # Build a wrapper that handles the conversion properly
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> None:
+            # Convert hyphenated keys to underscore keys
+            normalized_kwargs: dict[str, Any] = {}
+            for key, value in kwargs.items():
+                if value is not None:
+                    normalized_kwargs[key] = value
+
+            # Build args dict
+            args_dict: dict[str, Any] = {}
+            for arg in args_def:
+                arg_name = arg.get("name", "").replace("-", "_")
+                if arg_name in normalized_kwargs:
+                    args_dict[arg_name] = normalized_kwargs[arg_name]
+
+            # Execute the command
+            executor = CommandExecutor()
+            result = executor.execute(cmd, args_dict)
+
+            if result.success:
+                console.print(result.output)
             else:
-                decorators.append(
-                    f'@click.option("{opt_name}", default={default_val}, help="{arg_description}", show_default=True)'
-                )
+                console.print(f"[bold red]Error:[/bold red] {result.error}")
 
-        params_str = ", ".join(params)
-        decorators_str = "\n".join(reversed(decorators))
+        wrapper.__name__ = cmd.name
+        wrapper.__doc__ = description
+        wrapper.__signature__ = sig
 
-        # Build function body - build args dict manually
-        args_lines = []
-        for arg in args_def:
-            param_name = arg.get("name", "").replace("-", "_")
-            args_lines.append(f"    if {param_name} is not None:")
-            args_lines.append(f'        args["{param_name}"] = {param_name}')
-
-        args_body = "\n".join(args_lines) if args_lines else "    pass"
-
-        func_code = f'''
-{decorators_str}
-def {cmd.name}({params_str}):
-    """{description}"""
-    args = dict()
-{args_body}
-    
-    executor = CommandExecutor()
-    result = executor.execute(cmd, args)
-    if result.success:
-        console.print(result.output)
-    else:
-        console.print(f"[bold red]Error:[/bold red] {{result.error}}")
-'''
-
-    # Execute the code to create the function
-    namespace = {
-        "click": click,
-        "CommandExecutor": CommandExecutor,
-        "console": console,
-        "cmd": cmd,
-    }
-    exec(func_code, namespace)
-
-    return namespace[cmd.name]
+        return wrapper
 
 
 def register_commands(typer_app: typer.Typer, group: CommandGroup):
@@ -398,7 +451,7 @@ def register_commands(typer_app: typer.Typer, group: CommandGroup):
 
 
 # Initialize registry and build CLI tree
-root_group = registry.scan_all()
+root_group = get_registry().scan_all()
 register_commands(app, root_group)
 
 
@@ -428,8 +481,8 @@ def watch(
 
     # Create watcher
     watcher = CommandWatcher(
-        commands_dir=COMMANDS_DIR,
-        reload_callback=lambda: registry.scan_all(),
+        commands_dir=get_commands_dir(),
+        reload_callback=lambda: get_registry().scan_all(),
         debounce_ms=debounce,
     )
 
