@@ -75,7 +75,7 @@ python_function: timestamp.handle_timestamp
         cmd_file.write_text(content)
 
         fm, _ = parse_markdown_command(cmd_file)
-        
+
         # Should be normalized to new format
         assert fm["execution_type"] == "executable"
         assert fm["executable_type"] == "python"
@@ -171,7 +171,10 @@ class TestValidateFrontmatter:
         }
         with pytest.raises(ValidationError) as exc:
             validate_frontmatter(fm)
-        assert "executable_path" in str(exc.value).lower() or "inline" in str(exc.value).lower()
+        assert (
+            "executable_path" in str(exc.value).lower()
+            or "inline" in str(exc.value).lower()
+        )
 
     def test_valid_args(self):
         """Test validation of valid args."""

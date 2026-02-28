@@ -58,9 +58,7 @@ class TestLoadConfig:
         config = load_config()
         assert config == sample_config
 
-    def test_adds_missing_command_directories_key(
-        self, mock_config_file: Path
-    ):
+    def test_adds_missing_command_directories_key(self, mock_config_file: Path):
         """Should add missing command_directories key."""
         mock_config_file.write_text('{"other": "data"}')
         config = load_config()
@@ -206,17 +204,13 @@ class TestGetUserCommandsDir:
 class TestUserCommandsAutoDiscovery:
     """Tests for auto-discovery of ~/.arsenal/commands/."""
 
-    def test_includes_user_commands_dir_when_exists(
-        self, monkeypatch, temp_dir: Path
-    ):
+    def test_includes_user_commands_dir_when_exists(self, monkeypatch, temp_dir: Path):
         """Should include ~/.arsenal/commands/ when it exists."""
         user_commands = temp_dir / ".arsenal" / "commands"
         user_commands.mkdir(parents=True)
 
         # Mock Path.home() to return our temp_dir
-        monkeypatch.setattr(
-            "agent_arsenal.config.Path.home", lambda: temp_dir
-        )
+        monkeypatch.setattr("agent_arsenal.config.Path.home", lambda: temp_dir)
 
         dirs = get_command_directories()
         assert user_commands in dirs
@@ -224,17 +218,13 @@ class TestUserCommandsAutoDiscovery:
     def test_does_not_include_when_not_exists(self, monkeypatch, temp_dir: Path):
         """Should not include when directory doesn't exist."""
         # Mock Path.home() to return our temp_dir
-        monkeypatch.setattr(
-            "agent_arsenal.config.Path.home", lambda: temp_dir
-        )
+        monkeypatch.setattr("agent_arsenal.config.Path.home", lambda: temp_dir)
 
         dirs = get_command_directories()
         user_commands = temp_dir / ".arsenal" / "commands"
         assert user_commands not in dirs
 
-    def test_no_duplicate_when_already_in_config(
-        self, monkeypatch, temp_dir: Path
-    ):
+    def test_no_duplicate_when_already_in_config(self, monkeypatch, temp_dir: Path):
         """Should not add duplicate if already in config."""
         user_commands = temp_dir / ".arsenal" / "commands"
         user_commands.mkdir(parents=True)
@@ -243,9 +233,7 @@ class TestUserCommandsAutoDiscovery:
         add_command_directory(str(user_commands))
 
         # Mock Path.home() to return our temp_dir
-        monkeypatch.setattr(
-            "agent_arsenal.config.Path.home", lambda: temp_dir
-        )
+        monkeypatch.setattr("agent_arsenal.config.Path.home", lambda: temp_dir)
 
         dirs = get_command_directories()
         # Should only have one entry
@@ -263,9 +251,7 @@ class TestUserCommandsAutoDiscovery:
         add_command_directory(str(custom_dir))
 
         # Mock Path.home() to return our temp_dir
-        monkeypatch.setattr(
-            "agent_arsenal.config.Path.home", lambda: temp_dir
-        )
+        monkeypatch.setattr("agent_arsenal.config.Path.home", lambda: temp_dir)
 
         dirs = get_command_directories()
         assert user_commands in dirs

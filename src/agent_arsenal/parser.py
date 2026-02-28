@@ -26,9 +26,7 @@ def parse_markdown_command(file_path: Path) -> tuple[dict[str, Any], str]:
     frontmatter_str, body = split_frontmatter(content)
 
     try:
-        frontmatter = (
-            yaml.safe_load(frontmatter_str) if frontmatter_str else {}
-        )
+        frontmatter = yaml.safe_load(frontmatter_str) if frontmatter_str else {}
     except YAMLError as e:
         raise ValueError(f"Error parsing frontmatter in {file_path}: {e}")
 
@@ -143,9 +141,7 @@ def validate_frontmatter(frontmatter: dict[str, Any]) -> dict[str, Any]:
         executable_type = frontmatter.get("executable_type")
 
         if not executable_type:
-            errors.append(
-                "execution_type 'executable' requires 'executable_type'"
-            )
+            errors.append("execution_type 'executable' requires 'executable_type'")
         elif executable_type not in ["python", "bash", "node"]:
             errors.append(
                 f"Invalid executable_type: '{executable_type}'. "
@@ -155,9 +151,7 @@ def validate_frontmatter(frontmatter: dict[str, Any]) -> dict[str, Any]:
         # Python requires executable_path
         if executable_type == "python":
             if not frontmatter.get("executable_path"):
-                errors.append(
-                    "executable_type 'python' requires 'executable_path'"
-                )
+                errors.append("executable_type 'python' requires 'executable_path'")
 
         # Bash requires either executable_path or executable_inline
         if executable_type == "bash":

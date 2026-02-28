@@ -79,9 +79,7 @@ class TestScanAll:
         cmd_names = [c.name for c in root.commands]
         assert "external-cmd" in cmd_names
 
-    def test_builtin_takes_precedence(
-        self, commands_dir: Path, temp_dir: Path
-    ):
+    def test_builtin_takes_precedence(self, commands_dir: Path, temp_dir: Path):
         """Built-in commands should take precedence over external."""
         # Create builtin command
         (commands_dir / "same-name.md").write_text("""---
@@ -108,9 +106,7 @@ External""")
         # Built-in takes precedence - path should be from commands directory
         assert "commands" in str(same_name_cmds[0].path)
 
-    def test_skips_nonexistent_external_dir(
-        self, commands_dir: Path, temp_dir: Path
-    ):
+    def test_skips_nonexistent_external_dir(self, commands_dir: Path, temp_dir: Path):
         """Should handle non-existent external directories gracefully."""
         nonexistent = temp_dir / "does-not-exist"
         registry = CommandRegistry(commands_dir, [nonexistent])
@@ -122,9 +118,7 @@ External""")
         cmd_names = [c.name for c in root.commands]
         assert "test-cmd" in cmd_names
 
-    def test_scans_external_subdirectories(
-        self, commands_dir: Path, temp_dir: Path
-    ):
+    def test_scans_external_subdirectories(self, commands_dir: Path, temp_dir: Path):
         """Should scan external directories recursively."""
         external = temp_dir / "external"
         external.mkdir()

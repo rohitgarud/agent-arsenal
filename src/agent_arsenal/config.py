@@ -88,9 +88,7 @@ def load_config() -> dict[str, Any]:
 
     # Ensure it's a list
     if not isinstance(config["command_directories"], list):
-        logger.warning(
-            "Invalid command_directories format. Resetting to default."
-        )
+        logger.warning("Invalid command_directories format. Resetting to default.")
         config["command_directories"] = []
 
     return config
@@ -109,13 +107,9 @@ def save_config(config: dict[str, Any]) -> None:
     config_path = get_config_path()
 
     try:
-        config_path.write_text(
-            json.dumps(config, indent=2) + "\n", encoding="utf-8"
-        )
+        config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     except PermissionError as e:
-        raise PermissionError(
-            f"Cannot write config file {config_path}: {e}"
-        ) from e
+        raise PermissionError(f"Cannot write config file {config_path}: {e}") from e
 
 
 def get_user_commands_dir() -> Path:

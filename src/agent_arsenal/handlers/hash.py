@@ -23,10 +23,10 @@ def handle_hash(
     # Read from stdin if requested
     if input == "-":
         input = sys.stdin.read()
-    
+
     if not input:
         return "Error: No input provided"
-    
+
     # Get the hash algorithm
     algorithm = algorithm.lower()
     if algorithm == "md5":
@@ -37,7 +37,7 @@ def handle_hash(
         hasher = hashlib.sha512()
     else:
         return f"Error: Unknown algorithm '{algorithm}'. Supported: md5, sha256, sha512"
-    
+
     # Decode input based on encoding
     try:
         if encoding == "utf-8":
@@ -52,7 +52,7 @@ def handle_hash(
             return f"Error: Unknown encoding '{encoding}'. Supported: utf-8, latin-1, hex, base64"
     except Exception as e:
         return f"Error: Failed to decode input: {e}"
-    
+
     # Compute hash
     hasher.update(data)
     return hasher.hexdigest()

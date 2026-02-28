@@ -30,7 +30,7 @@ def handle_time_convert(
             from_zone = ZoneInfo(from_tz)
     except KeyError:
         return f"Error: Unknown source timezone '{from_tz}'. Use IANA timezone names like 'UTC', 'America/New_York'"
-    
+
     # Parse target timezone
     try:
         if to_tz == "local":
@@ -39,7 +39,7 @@ def handle_time_convert(
             to_zone = ZoneInfo(to_tz)
     except KeyError:
         return f"Error: Unknown target timezone '{to_tz}'. Use IANA timezone names like 'UTC', 'America/New_York'"
-    
+
     # Parse input time or use current time
     if time:
         # Try to parse the time string
@@ -58,7 +58,7 @@ def handle_time_convert(
                 "%H:%M:%S",
                 "%H:%M",
             ]
-            
+
             dt = None
             for fmt in formats:
                 try:
@@ -70,33 +70,33 @@ def handle_time_convert(
                     break
                 except ValueError:
                     continue
-            
+
             if dt is None:
                 return f"Error: Could not parse time string '{time}'"
-        
+
         # Ensure dt is not None before converting
         if dt is None:
             return f"Error: Could not parse time string '{time}'"
-        
+
         # Convert to target timezone
         if to_zone:
             dt = dt.astimezone(to_zone)
         else:
             dt = dt.astimezone()  # Convert to local
-        
+
     else:
         # Use current time
         if from_zone:
             dt = datetime.now(from_zone)
         else:
             dt = datetime.now()
-        
+
         # Convert to target timezone
         if to_zone:
             dt = dt.astimezone(to_zone)
         else:
             dt = dt.astimezone()
-    
+
     # Format output
     try:
         return dt.strftime(format)

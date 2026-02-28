@@ -47,9 +47,7 @@ class TestExternalDirAdd:
         # First add
         runner.invoke(app, ["config", "external-dir", "add", str(test_dir)])
         # Second add
-        result = runner.invoke(
-            app, ["config", "external-dir", "add", str(test_dir)]
-        )
+        result = runner.invoke(app, ["config", "external-dir", "add", str(test_dir)])
 
         assert result.exit_code == 0
         assert "Already registered" in result.output
@@ -66,9 +64,7 @@ class TestExternalDirRemove:
         # Add first
         runner.invoke(app, ["config", "external-dir", "add", str(test_dir)])
         # Then remove
-        result = runner.invoke(
-            app, ["config", "external-dir", "remove", str(test_dir)]
-        )
+        result = runner.invoke(app, ["config", "external-dir", "remove", str(test_dir)])
 
         assert result.exit_code == 0
         assert "Removed:" in result.output
@@ -166,9 +162,7 @@ class TestExternalDirHelp:
 
     def test_remove_help(self):
         """Should show help for remove subcommand."""
-        result = runner.invoke(
-            app, ["config", "external-dir", "remove", "--help"]
-        )
+        result = runner.invoke(app, ["config", "external-dir", "remove", "--help"])
 
         assert result.exit_code == 0
         assert "Remove an external command directory" in result.output

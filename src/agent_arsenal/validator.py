@@ -12,7 +12,16 @@ _EXECUTABLE_PATH_REQUIRED: tuple[str, ...] = ("python",)
 _EXECUTABLE_PATH_OR_INLINE: tuple[str, ...] = ("bash", "node", "typescript")
 
 # Valid argument types (includes both Python names and common YAML aliases)
-_VALID_ARG_TYPES = {"string", "int", "integer", "float", "bool", "boolean", "list", "dict"}
+_VALID_ARG_TYPES = {
+    "string",
+    "int",
+    "integer",
+    "float",
+    "bool",
+    "boolean",
+    "list",
+    "dict",
+}
 
 # Type mapping for default value validation
 _TYPE_MAP: dict[str, type | tuple[type, ...]] = {
@@ -43,7 +52,9 @@ class Argument(BaseModel):
         if not v:
             raise ValueError("argument name cannot be empty")
         if not re.match(r"^[a-z_][a-z0-9_]*$", v):
-            raise ValueError(f"argument name '{v}' must be a valid identifier (lowercase alphanumeric, underscore)")
+            raise ValueError(
+                f"argument name '{v}' must be a valid identifier (lowercase alphanumeric, underscore)"
+            )
         return v
 
     @field_validator("type")
@@ -110,7 +121,9 @@ class CommandFrontmatter(BaseModel):
 
         # Check valid identifier pattern
         if not re.match(r"^[a-z][a-z0-9_-]*$", v):
-            raise ValueError("name must be a valid identifier (lowercase alphanumeric, hyphen, underscore)")
+            raise ValueError(
+                "name must be a valid identifier (lowercase alphanumeric, hyphen, underscore)"
+            )
 
         # Check not a keyword
         if keyword.iskeyword(v):
@@ -150,7 +163,9 @@ class CommandFrontmatter(BaseModel):
 
     @field_validator("executable_path")
     @classmethod
-    def validate_executable_path(cls, executable_path: str | None, info: Any) -> str | None:
+    def validate_executable_path(
+        cls, executable_path: str | None, info: Any
+    ) -> str | None:
         """Require executable_path when execution_type is executable and executable_type is python."""
         execution_type = info.data.get("execution_type")
         executable_type = info.data.get("executable_type")

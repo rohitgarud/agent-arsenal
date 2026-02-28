@@ -18,9 +18,9 @@ def handle_url(
     """
     if not input:
         return "Error: No input provided"
-    
+
     mode = mode.lower()
-    
+
     try:
         if mode == "encode":
             return urllib.parse.quote(input)

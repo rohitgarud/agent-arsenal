@@ -46,7 +46,7 @@ check:  ## Quick health check (fast lint + type check)
 
 lint:  ## Run all linters (ruff, mypy)
 	ruff check src tests
-	uv run mypy src
+	uv run mypy src --check-untyped-defs
 
 format:  ## Format code with ruff
 	ruff format src tests

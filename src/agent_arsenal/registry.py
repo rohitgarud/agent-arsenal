@@ -34,9 +34,7 @@ class CommandGroup:
 class CommandRegistry:
     """Registry for discovering and managing commands from the commands/ folder."""
 
-    def __init__(
-        self, commands_dir: Path, external_dirs: list[Path] | None = None
-    ):
+    def __init__(self, commands_dir: Path, external_dirs: list[Path] | None = None):
         """Initialize the registry with a commands directory.
 
         Args:
@@ -77,9 +75,7 @@ class CommandRegistry:
             fm, _ = parse_markdown_command(info_file)
             description = fm.get("description", "")
 
-        group = CommandGroup(
-            name=group_name, path=current_dir, description=description
-        )
+        group = CommandGroup(name=group_name, path=current_dir, description=description)
 
         if not current_dir.exists():
             return group
@@ -87,9 +83,7 @@ class CommandRegistry:
         for item in current_dir.iterdir():
             if item.is_dir():
                 if not item.name.startswith(("_", ".")):
-                    sub_group = self.scan_directory(
-                        item, external_only=external_only
-                    )
+                    sub_group = self.scan_directory(item, external_only=external_only)
                     group.subgroups.append(sub_group)
             elif item.suffix == ".md" and item.name != "info.md":
                 if not item.name.startswith(("_", ".")):
@@ -98,9 +92,7 @@ class CommandRegistry:
                     cache_key = f"{group_name}.{cmd_name}"
                     if cache_key not in self._commands_cache:
                         group.commands.append(
-                            Command(
-                                name=cmd_name, path=item, parent=group_name
-                            )
+                            Command(name=cmd_name, path=item, parent=group_name)
                         )
                         self._commands_cache[cache_key] = group.commands[-1]
 
@@ -124,9 +116,7 @@ class CommandRegistry:
 
         return root_group
 
-    def _scan_external_directory(
-        self, ext_dir: Path, root_group: CommandGroup
-    ) -> None:
+    def _scan_external_directory(self, ext_dir: Path, root_group: CommandGroup) -> None:
         """Scan an external directory for commands and add them to the root group.
 
         External directories are flattened - all commands are added to the root group
@@ -153,9 +143,7 @@ class CommandRegistry:
                     # First-match-wins: skip if command with same name already exists
                     if cmd_name not in existing_names:
                         root_group.commands.append(
-                            Command(
-                                name=cmd_name, path=item, parent="external"
-                            )
+                            Command(name=cmd_name, path=item, parent="external")
                         )
                         existing_names.add(cmd_name)
                         # Add to cache for lookup

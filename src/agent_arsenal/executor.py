@@ -33,9 +33,7 @@ class CommandExecutor:
         """Initialize the executor."""
         pass
 
-    def execute_prompt(
-        self, command_path: Path, args: dict[str, Any]
-    ) -> CommandResult:
+    def execute_prompt(self, command_path: Path, args: dict[str, Any]) -> CommandResult:
         """Execute prompt-type command (return markdown instructions)."""
         from agent_arsenal.parser import parse_markdown_command
 
@@ -50,9 +48,7 @@ class CommandExecutor:
         except Exception as e:
             return CommandResult(success=False, output="", error=str(e))
 
-    def execute(
-        self, command_obj: "Command", args: dict[str, Any]
-    ) -> CommandResult:
+    def execute(self, command_obj: "Command", args: dict[str, Any]) -> CommandResult:
         """Execute a command based on its execution type."""
         from agent_arsenal.parser import (
             get_handler_info,
@@ -106,9 +102,7 @@ class CommandExecutor:
         # Try co-located handler first (per spec)
         # Format: commands/<group>/handlers/<command_name>.py
         if "." in handler_path:
-            handler_module_name, handler_func_name = handler_path.rsplit(
-                ".", 1
-            )
+            handler_module_name, handler_func_name = handler_path.rsplit(".", 1)
         else:
             handler_module_name = handler_path
             handler_func_name = f"handle_{command_name}"
@@ -116,18 +110,14 @@ class CommandExecutor:
         # Check for co-located handler
         co_located_handler_dir = command_dir / "handlers"
         if co_located_handler_dir.exists():
-            co_located_path = (
-                co_located_handler_dir / f"{handler_module_name}.py"
-            )
+            co_located_path = co_located_handler_dir / f"{handler_module_name}.py"
             if co_located_path.exists():
                 try:
                     # Import from commands.<group>.handlers.<module>
                     if parent_name:
                         module_path = f"agent_arsenal.commands.{parent_name}.handlers.{handler_module_name}"
                     else:
-                        module_path = (
-                            f"agent_arsenal.handlers.{handler_module_name}"
-                        )
+                        module_path = f"agent_arsenal.handlers.{handler_module_name}"
                     handler_module = import_module(module_path)
                     handler_func = getattr(handler_module, handler_func_name)
                     return handler_module, handler_func
@@ -176,9 +166,7 @@ class CommandExecutor:
                 )
 
             # Find and import the handler
-            _, handler_func = self._find_handler_module(
-                command_obj, handler_path
-            )
+            _, handler_func = self._find_handler_module(command_obj, handler_path)
 
             # Call the handler with args
             result = handler_func(**args)
@@ -418,7 +406,6 @@ class CommandExecutor:
                 output="",
                 error=f"Template execution error: {e}",
             )
-
 
     def render_instructions(
         self,

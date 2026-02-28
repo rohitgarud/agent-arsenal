@@ -73,8 +73,7 @@ class JSONStore:
         temp_path = self.file_path.with_suffix(".tmp")
         try:
             temp_path.write_text(
-                json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-                encoding="utf-8"
+                json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
             )
             temp_path.replace(self.file_path)
         except IOError as e:

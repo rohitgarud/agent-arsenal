@@ -101,9 +101,7 @@ class ArsenalState:
                 return None
         return value
 
-    def _set_nested_value(
-        self, state_dict: dict[str, Any], key: str, value: Any
-    ):
+    def _set_nested_value(self, state_dict: dict[str, Any], key: str, value: Any):
         """Set value in state, supporting dot notation for nested keys.
 
         Args:
@@ -125,9 +123,7 @@ class ArsenalState:
 
         current[keys[-1]] = value
 
-    def _delete_nested_value(
-        self, state_dict: dict[str, Any], key: str
-    ) -> bool:
+    def _delete_nested_value(self, state_dict: dict[str, Any], key: str) -> bool:
         """Delete value from state, supporting dot notation for nested keys.
 
         Args:
@@ -156,9 +152,7 @@ class ArsenalState:
             return True
         return False
 
-    def get(
-        self, key: str, scope: Scope = Scope.SESSION, default: Any = None
-    ) -> Any:
+    def get(self, key: str, scope: Scope = Scope.SESSION, default: Any = None) -> Any:
         """Retrieve value from state.
 
         Args:
@@ -261,9 +255,7 @@ class ArsenalState:
             # Load project-specific state if exists
             if self.project_state_file.exists():
                 try:
-                    content = self.project_state_file.read_text(
-                        encoding="utf-8"
-                    )
+                    content = self.project_state_file.read_text(encoding="utf-8")
                     if content.strip():
                         self._project_state = json.loads(content)
                 except json.JSONDecodeError:

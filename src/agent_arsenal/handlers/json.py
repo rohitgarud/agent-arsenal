@@ -24,24 +24,24 @@ def handle_json(
     # Read from stdin if requested
     if input == "-":
         input = sys.stdin.read()
-    
+
     if not input:
         return "Error: No input provided"
-    
+
     # Parse JSON
     try:
         data = json.loads(input)
     except json.JSONDecodeError as e:
         return f"Error: Invalid JSON: {e}"
-    
+
     # Validation only
     if validate:
         return "Valid JSON"
-    
+
     # Determine indent
     if minify:
         indent = 0
-    
+
     # Format JSON
     try:
         return json.dumps(data, indent=indent, ensure_ascii=False)

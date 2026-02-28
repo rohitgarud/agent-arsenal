@@ -9,7 +9,12 @@ from agent_arsenal.config import (
     remove_command_directory,
     save_config,
 )
-from agent_arsenal.sandbox import CommandResult, DenoSandboxExecutor, SandboxConfig, SandboxPermissions
+from agent_arsenal.sandbox import (
+    CommandResult,
+    DenoSandboxExecutor,
+    SandboxConfig,
+    SandboxPermissions,
+)
 
 __version__ = "0.1.0"
 

@@ -67,13 +67,17 @@ Hello stranger!
         executor = CommandExecutor()
 
         # Test with show_message=True
-        result = executor.execute_template(cmd_file, {"show_message": True, "name": "World"})
+        result = executor.execute_template(
+            cmd_file, {"show_message": True, "name": "World"}
+        )
         assert result.success
         assert "This is a conditional message." in result.output
         assert "Hello World!" in result.output
 
         # Test with show_message=False
-        result = executor.execute_template(cmd_file, {"show_message": False, "name": "World"})
+        result = executor.execute_template(
+            cmd_file, {"show_message": False, "name": "World"}
+        )
         assert result.success
         assert "This is a conditional message." not in result.output
 
@@ -97,7 +101,9 @@ Items:
 """)
 
         executor = CommandExecutor()
-        result = executor.execute_template(cmd_file, {"items": ["apple", "banana", "cherry"]})
+        result = executor.execute_template(
+            cmd_file, {"items": ["apple", "banana", "cherry"]}
+        )
 
         assert result.success
         assert "- apple" in result.output
@@ -206,7 +212,10 @@ Hello World!
         executor = CommandExecutor()
 
         # Test with the timestamp handler
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/time/timestamp.md"
+        cmd_path = (
+            Path(__file__).parent.parent
+            / "src/agent_arsenal/commands/common/time/timestamp.md"
+        )
         cmd = Command(name="timestamp", path=cmd_path, parent="common.time")
 
         result = executor.execute_python(cmd, {"format": "%Y-%m-%d"})
@@ -283,7 +292,10 @@ class TestExecuteIntegration:
 
     def test_execute_timestamp_command(self):
         """Test executing the timestamp command."""
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/time/timestamp.md"
+        cmd_path = (
+            Path(__file__).parent.parent
+            / "src/agent_arsenal/commands/common/time/timestamp.md"
+        )
         cmd = Command(name="timestamp", path=cmd_path, parent="common.time")
 
         executor = CommandExecutor()
@@ -300,7 +312,9 @@ class TestExecuteIntegration:
 
     def test_execute_uuid_command(self):
         """Test executing the UUID command."""
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/uuid.md"
+        cmd_path = (
+            Path(__file__).parent.parent / "src/agent_arsenal/commands/common/uuid.md"
+        )
         cmd = Command(name="uuid", path=cmd_path, parent="common")
 
         executor = CommandExecutor()
@@ -312,7 +326,9 @@ class TestExecuteIntegration:
 
     def test_execute_hash_command(self):
         """Test executing the hash command."""
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/hash.md"
+        cmd_path = (
+            Path(__file__).parent.parent / "src/agent_arsenal/commands/common/hash.md"
+        )
         cmd = Command(name="hash", path=cmd_path, parent="common")
 
         executor = CommandExecutor()
@@ -324,7 +340,10 @@ class TestExecuteIntegration:
 
     def test_execute_json_command(self):
         """Test executing the JSON command."""
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/code/json.md"
+        cmd_path = (
+            Path(__file__).parent.parent
+            / "src/agent_arsenal/commands/common/code/json.md"
+        )
         cmd = Command(name="json", path=cmd_path, parent="common.code")
 
         executor = CommandExecutor()
@@ -336,7 +355,10 @@ class TestExecuteIntegration:
 
     def test_execute_json_validate(self):
         """Test executing JSON with validate option."""
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/code/json.md"
+        cmd_path = (
+            Path(__file__).parent.parent
+            / "src/agent_arsenal/commands/common/code/json.md"
+        )
         cmd = Command(name="json", path=cmd_path, parent="common.code")
 
         executor = CommandExecutor()
@@ -353,7 +375,10 @@ class TestExecuteIntegration:
     def test_execute_node_version_command(self, tmp_path):
         """Test executing the node_version command."""
         # Use actual command file
-        cmd_path = Path(__file__).parent.parent / "src/agent_arsenal/commands/common/code/node_version.md"
+        cmd_path = (
+            Path(__file__).parent.parent
+            / "src/agent_arsenal/commands/common/code/node_version.md"
+        )
         cmd = Command(name="node_version", path=cmd_path, parent="common.code")
 
         executor = CommandExecutor()

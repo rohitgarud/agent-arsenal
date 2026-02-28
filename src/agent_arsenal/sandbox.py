@@ -12,6 +12,7 @@ from typing import Any
 @dataclass
 class SandboxPermissions:
     """Permissions for sandboxed command execution."""
+
     allow_read: list[str] = field(default_factory=list)
     allow_write: list[str] = field(default_factory=list)
     allow_net: bool = False
@@ -22,16 +23,16 @@ class SandboxPermissions:
 @dataclass
 class SandboxConfig:
     """Global sandbox configuration."""
+
     enabled: bool = True
     timeout_seconds: int = 30
-    default_permissions: SandboxPermissions = field(
-        default_factory=SandboxPermissions
-    )
+    default_permissions: SandboxPermissions = field(default_factory=SandboxPermissions)
 
 
 @dataclass
 class CommandResult:
     """Result of command execution."""
+
     success: bool
     output: str
     error: str | None = None
@@ -60,6 +61,7 @@ class DenoSandboxExecutor:
         """Detect Deno installation path."""
         # First, check if deno is in PATH
         import shutil
+
         deno_from_path = shutil.which("deno")
         if deno_from_path:
             return Path(deno_from_path)
@@ -77,6 +79,7 @@ class DenoSandboxExecutor:
             return False
 
         import subprocess
+
         try:
             result = subprocess.run(
                 [str(self._deno_path), "--version"],
@@ -136,29 +139,38 @@ class DenoSandboxExecutor:
             return CommandResult(
                 success=False,
                 output="",
-                error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh"
+                error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh",
             )
 
         # Pyodide bootstrap script to run Python
-        pyodide_script = '''
+        pyodide_script = (
+            """
 import { loadPyodide } from "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.mjs";
 const pyodide = await loadPyodide();
-const result = await pyodide.runPythonAsync(`''' + script + '''`);
+const result = await pyodide.runPythonAsync(`"""
+            + script
+            + """`);
 console.log(String(result));
-'''
+"""
+        )
 
         import subprocess
         import tempfile
 
         try:
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".js", delete=False
-            ) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
                 f.write(pyodide_script)
                 script_path = f.name
 
             flags = self._build_permission_flags(permissions)
-            cmd = [str(self._deno_path), "run", "--allow-read", "--allow-write", *flags, script_path]
+            cmd = [
+                str(self._deno_path),
+                "run",
+                "--allow-read",
+                "--allow-write",
+                *flags,
+                script_path,
+            ]
 
             result = subprocess.run(
                 cmd,
@@ -204,16 +216,14 @@ console.log(String(result));
             return CommandResult(
                 success=False,
                 output="",
-                error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh"
+                error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh",
             )
 
         import subprocess
         import tempfile
 
         try:
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".sh", delete=False
-            ) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
                 f.write(script)
                 script_path = f.name
 
@@ -264,16 +274,14 @@ console.log(String(result));
             return CommandResult(
                 success=False,
                 output="",
-                error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh"
+                error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh",
             )
 
         import subprocess
         import tempfile
 
         try:
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".js", delete=False
-            ) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
                 f.write(script)
                 script_path = f.name
 
@@ -325,7 +333,7 @@ console.log(String(result));
             return CommandResult(
                 success=False,
                 output="",
-                error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh"
+                error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh",
             )
 
         # Route to appropriate executor based on execution type
