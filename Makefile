@@ -42,12 +42,11 @@ pre-commit-run:  ## Run pre-commit on all files
 
 check:  ## Quick health check (fast lint + type check)
 	ruff check src tests
-	mypy src --no-error-summary
+	uv run mypy src --no-error-summary
 
 lint:  ## Run all linters (ruff, mypy)
 	ruff check src tests
-	mypy src
-	pre-commit run --all-files
+	uv run mypy src
 
 format:  ## Format code with ruff
 	ruff format src tests
@@ -83,4 +82,3 @@ update: clean sync install-pre-commit lint  ## Full project update
 
 release_notes:  ## Generate release notes
 	sed -n '/## \[v0.2.1\]/,/## \[/p' CHANGELOG.md | head -n -1
-

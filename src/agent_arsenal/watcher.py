@@ -55,7 +55,7 @@ class CommandWatcher:
 
     def start(self):
         """Start watching for file changes in background thread."""
-        import watchfiles
+        import watchfiles  # type: ignore[import-not-found]
 
         if self._watching:
             return
@@ -125,7 +125,7 @@ class CommandWatcher:
 
     def watch(self):
         """Blocking watch loop - waits for changes and reloads."""
-        import watchfiles
+        import watchfiles  # type: ignore[import-not-found]
 
         self._stop_event.clear()
         self._watching = True

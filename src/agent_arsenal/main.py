@@ -117,19 +117,13 @@ def external_dir_list():
     dirs = list_command_directories()
 
     if not dirs:
-        console.print(
-            "[yellow]No external command directories registered.[/yellow]"
-        )
+        console.print("[yellow]No external command directories registered.[/yellow]")
         return
 
     console.print("[bold]Registered command directories:[/bold]")
     for d in dirs:
         exists = "✓" if d.exists() else "✗"
-        status = (
-            f"[green]{exists}[/green]"
-            if d.exists()
-            else f"[red]{exists}[/red]"
-        )
+        status = f"[green]{exists}[/green]" if d.exists() else f"[red]{exists}[/red]"
         console.print(f"  {status} {d}")
 
 
@@ -148,9 +142,7 @@ def state_get(
     value = state.get(key, scope_enum)
 
     if value is None:
-        console.print(
-            f"[yellow]Key '{key}' not found in {scope} scope[/yellow]"
-        )
+        console.print(f"[yellow]Key '{key}' not found in {scope} scope[/yellow]")
     else:
         console.print(f"[bold]{key}:[/bold] {value}")
 
@@ -210,9 +202,7 @@ def state_clear(
         "-s",
         help="Scope: session, persistent, project (default: all)",
     ),
-    all_scopes: bool = typer.Option(
-        False, "--all", "-a", help="Clear all scopes"
-    ),
+    all_scopes: bool = typer.Option(False, "--all", "-a", help="Clear all scopes"),
 ):
     """Clear state for a scope."""
     from agent_arsenal.state import state
@@ -407,7 +397,7 @@ def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
 
         wrapper.__name__ = cmd.name
         wrapper.__doc__ = description
-        wrapper.__signature__ = sig
+        wrapper.__signature__ = sig  # type: ignore[attr-defined]
 
         return wrapper
 
