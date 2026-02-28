@@ -39,16 +39,37 @@ def parse_markdown_command(file_path: Path) -> tuple[dict[str, Any], str]:
 
 
 def _normalize_field_names(frontmatter: dict[str, Any]) -> dict[str, Any]:
-    """Normalize field names to support both old and new spec formats.
+    """Normalize command field names for backward compatibility.
 
-    Old format: execution_type: python, python_function
-    New format: execution_type: executable, executable_type, executable_path
+    This function handles legacy field names that have been renamed,
+    allowing old command files to continue working while supporting
+    the new field naming convention.
+
+    Field transformations:
+        - 'execution_type': 'python' -> 'execution_type': 'executable'
+                          with 'executable_type': 'python'
+        - 'python_function' -> 'executable_path' (for python executables)
+
+    Old format (deprecated but supported):
+        ```yaml
+        name: my-command
+        execution_type: python
+        python_function: handlers.my_module.handle_func
+        ```
+
+    New format (current):
+        ```yaml
+        name: my-command
+        execution_type: executable
+        executable_type: python
+        executable_path: handlers.my_module.handle_func
+        ```
 
     Args:
-        frontmatter: The parsed frontmatter
+        frontmatter: The parsed frontmatter dictionary
 
     Returns:
-        Frontmatter with normalized field names
+        Normalized frontmatter with legacy field names converted to new format
     """
     if not frontmatter:
         return frontmatter
