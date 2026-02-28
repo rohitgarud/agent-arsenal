@@ -6,6 +6,8 @@ from typing import Generator
 
 import pytest
 
+from agent_arsenal.sandbox import SandboxConfig, SandboxPermissions
+
 
 @pytest.fixture(autouse=True)
 def isolate_config(tmp_path, monkeypatch):
@@ -102,6 +104,38 @@ External command content
 def sample_config() -> dict:
     """Sample configuration dictionary."""
     return {"command_directories": []}
+
+
+@pytest.fixture
+def sandbox_permissions() -> SandboxPermissions:
+    """Sandbox permissions with typical test values."""
+    return SandboxPermissions(
+        allow_read=["/tmp"],
+        allow_write=["/tmp"],
+        allow_net=False,
+        allow_env=["HOME"],
+        allow_run=False,
+    )
+
+
+@pytest.fixture
+def sandbox_config(sandbox_permissions: SandboxPermissions) -> SandboxConfig:
+    """Sandbox configuration for testing."""
+    return SandboxConfig(
+        enabled=True,
+        timeout_seconds=30,
+        default_permissions=sandbox_permissions,
+    )
+
+
+@pytest.fixture
+def sandbox_config_disabled() -> SandboxConfig:
+    """Disabled sandbox configuration for testing."""
+    return SandboxConfig(
+        enabled=False,
+        timeout_seconds=30,
+        default_permissions=SandboxPermissions(),
+    )
 
 
 @pytest.fixture
