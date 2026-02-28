@@ -77,6 +77,7 @@
 - Prefer SOLID principles; keep registry, parser, executor and command definitions clearly separated
 - Add tests for new behavior; mock filesystem or optional deps when appropriate
 - Keep command help and context usage minimal (target &lt;500 tokens per invocation per PRD)
+- Always use dict, list for types instead of Typing Dict, List and always use | instead of typing Optional
 
 ### Don'ts
 
@@ -92,23 +93,3 @@
 - **Ask first**: Add or bump dependencies, change build/publish config, alter supported Python versions
 - **Never**: Commit secrets, disable security or lint checks, break documented public API without a plan
 
-### When in the Planning Mode
-
-- Create plans as markdown files in `plans/` with names having number incremented from previous plan
-- Ask clarifying questions if not clear and then make the plan
-- Read any directly mentioned files first
-- Analyze and decompose the planning goal provided by user
-- Identify any discrepancies or misunderstandings
-- Note assumptions that need verification
-- Identify specific components, patterns, or concepts and their connections to investigate; add to plan file
-- Add exact paths in the plan to files the implementation will touch, including line numbers/ranges
-- If user provides corrections, update the same plan accordingly
-- Plan should be self-contained with all research and context so the implementation agent does not need to open files other than those mentioned in the plan
-- Plan must always follow Test Driven Design (TDD): check if a test for the change exists; if not, the plan must include adding the test first
-- Explicitly list out-of-scope items to prevent scope creep
-- Add a verification step at the end (e.g. temporary or persistent tests, running relevant make/uv commands)
-
-### When in the Agent Implementation Mode
-
-- Do not open files other than those mentioned in the plan; the plan is comprehensive enough
-- Follow existing patterns as per plan rather than creating new patterns wherever possible
