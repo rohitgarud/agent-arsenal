@@ -420,12 +420,71 @@ class CommandExecutor:
             )
 
 
+    def render_instructions(
+        self,
+        command: "Command",
+        args: dict[str, Any],
+        context: dict[str, Any] | None = None,
+    ) -> str:
+        """Render command instructions with argument substitution.
+
+        Supports:
+        - {{arg_name}} - Direct argument substitution
+        - {{env.VAR}} - Environment variable substitution
+        - {{context.key}} - Context-based substitution
+
+        Args:
+            command: Command object
+            args: Command arguments
+            context: Optional additional context
+
+        Returns:
+            Rendered markdown instructions
+        """
+        from agent_arsenal.parser import parse_markdown_command
+
+        try:
+            frontmatter, body = parse_markdown_command(command.path)
+        except Exception:
+            # If we can't parse, return empty
+            return ""
+
+        # Use description as instructions if available
+        instructions = frontmatter.get("instructions", "")
+        if not instructions:
+            # Fall back to description
+            instructions = frontmatter.get("description", "")
+
+        if not instructions:
+            return ""
+
+        context = context or {}
+
+        # Build combined context: args > context > environment
+        full_context: dict[str, Any] = {}
+        full_context.update(os.environ)
+        full_context.update(context)
+        full_context.update(args)
+
+        # Simple template substitution using {{key}} syntax
+        result = instructions
+        for key, value in full_context.items():
+            if value is not None:
+                result = result.replace(f"{{{{{key}}}}}", str(value))
+
+        return result
+
+
 def render_instructions(
     command: "Command",
     args: dict[str, Any],
     context: dict[str, Any] | None = None,
 ) -> str:
-    """Render command instructions with argument substitution.
+    """Standalone function to render command instructions.
+
+    This is a convenience wrapper that creates a temporary executor
+    to render instructions. For better performance, use the method
+    on an existing CommandExecutor instance.
 
     Args:
         command: Command object
@@ -435,7 +494,5 @@ def render_instructions(
     Returns:
         Rendered markdown instructions
     """
-    # TODO: Implement instruction rendering
-    # - Support variable substitution
-    # - Format nicely with Rich
-    return ""
+    executor = CommandExecutor()
+    return executor.render_instructions(command, args, context)

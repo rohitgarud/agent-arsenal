@@ -1,5 +1,7 @@
 """State and context management for Agent Arsenal."""
 
+from __future__ import annotations
+
 import json
 import logging
 import threading
@@ -91,7 +93,7 @@ class ArsenalState:
 
         # Handle nested keys
         keys = key.split(".")
-        value = state_dict
+        value: dict[str, Any] | None = state_dict
         for k in keys:
             if isinstance(value, dict):
                 value = value.get(k)

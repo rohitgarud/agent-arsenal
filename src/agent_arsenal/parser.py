@@ -4,13 +4,10 @@ import re
 from pathlib import Path
 from typing import Any
 
+import yaml
+from yaml import YAMLError as YAMLError
 
-class ValidationError(Exception):
-    """Exception raised when frontmatter validation fails."""
-
-    def __init__(self, errors: list[str]):
-        self.errors = errors
-        super().__init__(f"Validation failed: {'; '.join(errors)}")
+from agent_arsenal.exceptions import ValidationError
 
 
 def parse_markdown_command(file_path: Path) -> tuple[dict[str, Any], str]:
@@ -28,13 +25,11 @@ def parse_markdown_command(file_path: Path) -> tuple[dict[str, Any], str]:
     content = file_path.read_text(encoding="utf-8")
     frontmatter_str, body = split_frontmatter(content)
 
-    import yaml
-
     try:
         frontmatter = (
             yaml.safe_load(frontmatter_str) if frontmatter_str else {}
         )
-    except yaml.YAMLError as e:
+    except YAMLError as e:
         raise ValueError(f"Error parsing frontmatter in {file_path}: {e}")
 
     # Normalize field names to support both old and new formats
