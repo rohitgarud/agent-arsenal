@@ -1,6 +1,7 @@
 """Configuration management for Agent Arsenal.
 
 Manages external command directory configuration stored in ~/.arsenal/settings.json
+and sandbox configuration for secure command execution.
 """
 
 import json
@@ -8,6 +9,8 @@ import logging
 import os
 from pathlib import Path
 from typing import Any
+
+from agent_arsenal.sandbox import SandboxConfig, SandboxPermissions
 
 logger = logging.getLogger(__name__)
 
@@ -238,3 +241,167 @@ def should_watch() -> bool:
     """
     watch_env = os.environ.get("ARSENAL_WATCH", "").lower()
     return watch_env in ("1", "true", "yes")
+
+
+# =============================================================================
+# Sandbox Configuration Functions
+# =============================================================================
+
+
+def load_sandbox_config() -> SandboxConfig:
+    """Load sandbox configuration from ~/.arsenal/settings.json.
+
+    If the sandbox config section doesn't exist or is invalid,
+    returns a SandboxConfig with default values.
+
+    Also checks if Deno is available and disables sandbox if not.
+
+    Returns:
+        SandboxConfig instance with loaded or default values
+    """
+    config_path = get_config_path()
+
+    if not config_path.exists():
+        return SandboxConfig()
+
+    try:
+        content = config_path.read_text(encoding="utf-8")
+    except PermissionError as e:
+        logger.warning("Cannot read config file %s: %s", config_path, e)
+        return SandboxConfig()
+
+    if not content.strip():
+        return SandboxConfig()
+
+    try:
+        config: dict[str, Any] = json.loads(content)
+    except json.JSONDecodeError as e:
+        logger.warning(
+            "Invalid JSON in config file %s: %s. Using default sandbox config.",
+            config_path,
+            e,
+        )
+        return SandboxConfig()
+
+    sandbox_data = config.get("sandbox", {})
+
+    # Parse enabled flag
+    enabled = sandbox_data.get("enabled", True)
+
+    # Parse timeout
+    timeout_seconds = sandbox_data.get("timeout_seconds", 30)
+
+    # Parse default permissions
+    perms_data = sandbox_data.get("default_permissions", {})
+    default_permissions = SandboxPermissions(
+        allow_read=perms_data.get("allow_read", []),
+        allow_write=perms_data.get("allow_write", []),
+        allow_net=perms_data.get("allow_net", False),
+        allow_env=perms_data.get("allow_env", []),
+        allow_run=perms_data.get("allow_run", False),
+    )
+
+    # Check Deno availability - if not available, warn and disable
+    from agent_arsenal.sandbox import DenoSandboxExecutor
+
+    temp_config = SandboxConfig(
+        enabled=enabled,
+        timeout_seconds=timeout_seconds,
+        default_permissions=default_permissions,
+    )
+    executor = DenoSandboxExecutor(temp_config)
+    if not executor._check_deno_available():
+        logger.warning(
+            "Deno is not installed. Sandbox will be disabled. "
+            "Install via: curl -fsSL https://deno.land/x/install/install.sh | sh"
+        )
+        return SandboxConfig(enabled=False)
+
+    return SandboxConfig(
+        enabled=enabled,
+        timeout_seconds=timeout_seconds,
+        default_permissions=default_permissions,
+    )
+
+
+def save_sandbox_config(config: SandboxConfig) -> None:
+    """Save sandbox configuration to ~/.arsenal/settings.json.
+
+    Creates the ~/.arsenal directory if it doesn't exist.
+
+    Args:
+        config: SandboxConfig instance to save
+
+    Raises:
+        PermissionError: If the config file cannot be written
+    """
+    _ensure_config_dir()
+    config_path = get_config_path()
+
+    # Load existing config to preserve other settings
+    existing_config = load_config()
+
+    # Build sandbox config dict
+    perms = config.default_permissions
+
+    # Handle allow_run - can be bool or list of strings
+    allow_run_value: bool | list[str]
+    if isinstance(perms.allow_run, bool):
+        allow_run_value = perms.allow_run
+    else:
+        allow_run_value = perms.allow_run if perms.allow_run else []
+
+    sandbox_data: dict[str, Any] = {
+        "enabled": config.enabled,
+        "timeout_seconds": config.timeout_seconds,
+        "default_permissions": {
+            "allow_read": perms.allow_read,
+            "allow_write": perms.allow_write,
+            "allow_net": perms.allow_net,
+            "allow_env": perms.allow_env,
+            "allow_run": allow_run_value,
+        },
+    }
+
+    # Merge with existing config
+    existing_config["sandbox"] = sandbox_data
+
+    try:
+        config_path.write_text(json.dumps(existing_config, indent=2) + "\n", encoding="utf-8")
+    except PermissionError as e:
+        raise PermissionError(f"Cannot write config file {config_path}: {e}") from e
+
+
+def get_sandbox_permissions_for_command(
+    frontmatter: dict[str, Any],
+    global_config: SandboxConfig,
+) -> SandboxPermissions:
+    """Merge command-specific and global sandbox permissions.
+
+    Command-specific permissions in frontmatter override global defaults.
+
+    Args:
+        frontmatter: Command's frontmatter dict (may contain sandbox_permissions)
+        global_config: Global SandboxConfig with default permissions
+
+    Returns:
+        Merged SandboxPermissions with command-specific overrides
+    """
+    # Start with global defaults
+    perms = global_config.default_permissions
+
+    # Get command-specific permissions from frontmatter
+    cmd_perms_data = frontmatter.get("sandbox_permissions")
+
+    if not cmd_perms_data or not isinstance(cmd_perms_data, dict):
+        # No command-specific overrides, return global defaults
+        return perms
+
+    # Merge command-specific permissions with global defaults
+    return SandboxPermissions(
+        allow_read=cmd_perms_data.get("allow_read", perms.allow_read),
+        allow_write=cmd_perms_data.get("allow_write", perms.allow_write),
+        allow_net=cmd_perms_data.get("allow_net", perms.allow_net),
+        allow_env=cmd_perms_data.get("allow_env", perms.allow_env),
+        allow_run=cmd_perms_data.get("allow_run", perms.allow_run),
+    )

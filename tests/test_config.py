@@ -2,18 +2,24 @@
 
 import json
 from pathlib import Path
+from unittest.mock import patch
+
 
 from agent_arsenal.config import (
     DEFAULT_CONFIG,
     add_command_directory,
     get_command_directories,
     get_config_path,
+    get_sandbox_permissions_for_command,
     get_user_commands_dir,
     list_command_directories,
     load_config,
+    load_sandbox_config,
     remove_command_directory,
     save_config,
+    save_sandbox_config,
 )
+from agent_arsenal.sandbox import SandboxConfig, SandboxPermissions
 
 
 class TestGetConfigPath:
@@ -256,3 +262,228 @@ class TestUserCommandsAutoDiscovery:
         dirs = get_command_directories()
         assert user_commands in dirs
         assert custom_dir in dirs
+
+
+class TestLoadSandboxConfig:
+    """Tests for load_sandbox_config function."""
+
+    def test_returns_default_when_file_missing(self, monkeypatch, mock_config_file: Path):
+        """Should return default config when file doesn't exist."""
+        # Don't write any file - the isolate_config fixture creates empty dir
+        with patch("agent_arsenal.sandbox.DenoSandboxExecutor") as mock_executor:
+            mock_instance = mock_executor.return_value
+            mock_instance._check_deno_available.return_value = True
+
+            config = load_sandbox_config()
+            assert config.enabled is True
+            assert config.timeout_seconds == 30
+            assert isinstance(config.default_permissions, SandboxPermissions)
+
+    def test_returns_default_when_sandbox_section_missing(
+        self, monkeypatch, mock_config_file: Path
+    ):
+        """Should return defaults when sandbox section not in config."""
+        # Write config without sandbox section
+        mock_config_file.write_text('{"command_directories": []}')
+
+        with patch("agent_arsenal.sandbox.DenoSandboxExecutor") as mock_executor:
+            mock_instance = mock_executor.return_value
+            mock_instance._check_deno_available.return_value = True
+
+            config = load_sandbox_config()
+            assert config.enabled is True
+            assert config.timeout_seconds == 30
+            assert isinstance(config.default_permissions, SandboxPermissions)
+
+    def test_parses_valid_sandbox_config(
+        self, monkeypatch, tmp_path: Path
+    ):
+        """Should parse valid sandbox config from file."""
+        # Write to the actual config path that get_config_path returns
+        config_path = get_config_path()
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(
+            json.dumps({
+                "command_directories": [],
+                "sandbox": {
+                    "enabled": False,
+                    "timeout_seconds": 60,
+                    "default_permissions": {
+                        "allow_read": ["/tmp"],
+                        "allow_write": ["/tmp"],
+                        "allow_net": True,
+                        "allow_env": ["HOME"],
+                        "allow_run": ["bash"],
+                    },
+                },
+            })
+        )
+
+        with patch("agent_arsenal.sandbox.DenoSandboxExecutor") as mock_executor:
+            mock_instance = mock_executor.return_value
+            mock_instance._check_deno_available.return_value = True
+
+            config = load_sandbox_config()
+            assert config.enabled is False
+            assert config.timeout_seconds == 60
+            assert config.default_permissions.allow_read == ["/tmp"]
+            assert config.default_permissions.allow_write == ["/tmp"]
+            assert config.default_permissions.allow_net is True
+            assert config.default_permissions.allow_env == ["HOME"]
+            assert config.default_permissions.allow_run == ["bash"]
+
+    def test_disables_sandbox_when_deno_not_available(
+        self, monkeypatch, tmp_path: Path
+    ):
+        """Should disable sandbox when Deno is not installed."""
+        # Write to the actual config path that get_config_path returns
+        config_path = get_config_path()
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(
+            json.dumps({
+                "sandbox": {
+                    "enabled": True,
+                    "timeout_seconds": 30,
+                },
+            })
+        )
+
+        with patch("agent_arsenal.sandbox.DenoSandboxExecutor") as mock_executor:
+            mock_instance = mock_executor.return_value
+            mock_instance._check_deno_available.return_value = False
+
+            config = load_sandbox_config()
+            assert config.enabled is False
+
+
+class TestSaveSandboxConfig:
+    """Tests for save_sandbox_config function."""
+
+    def test_creates_config_file(self, monkeypatch, mock_config_file: Path):
+        """Should create config file if it doesn't exist."""
+        config = SandboxConfig(enabled=True, timeout_seconds=30)
+        save_sandbox_config(config)
+
+        config_path = get_config_path()
+        assert config_path.exists()
+
+    def test_saves_valid_json(self, monkeypatch, mock_config_file: Path):
+        """Should save valid JSON to file."""
+        perms = SandboxPermissions(
+            allow_read=["/tmp"],
+            allow_write=["/tmp"],
+            allow_net=False,
+            allow_env=["HOME"],
+            allow_run=False,
+        )
+        config = SandboxConfig(enabled=True, timeout_seconds=60, default_permissions=perms)
+        save_sandbox_config(config)
+
+        config_path = get_config_path()
+        content = json.loads(config_path.read_text())
+        assert "sandbox" in content
+        assert content["sandbox"]["enabled"] is True
+        assert content["sandbox"]["timeout_seconds"] == 60
+
+    def test_handles_allow_run_as_bool(self, monkeypatch, mock_config_file: Path):
+        """Should save allow_run when it's a boolean."""
+        perms = SandboxPermissions(allow_run=True)
+        config = SandboxConfig(enabled=True, default_permissions=perms)
+        save_sandbox_config(config)
+
+        content = json.loads(get_config_path().read_text())
+        assert content["sandbox"]["default_permissions"]["allow_run"] is True
+
+    def test_handles_allow_run_as_list(self, monkeypatch, mock_config_file: Path):
+        """Should save allow_run when it's a list."""
+        perms = SandboxPermissions(allow_run=["bash", "python"])
+        config = SandboxConfig(enabled=True, default_permissions=perms)
+        save_sandbox_config(config)
+
+        content = json.loads(get_config_path().read_text())
+        assert content["sandbox"]["default_permissions"]["allow_run"] == ["bash", "python"]
+
+
+class TestGetSandboxPermissionsForCommand:
+    """Tests for get_sandbox_permissions_for_command function."""
+
+    def test_returns_global_defaults_when_no_override(self):
+        """Should return global defaults when no command-specific overrides."""
+        global_config = SandboxConfig(
+            default_permissions=SandboxPermissions(
+                allow_read=["/home"],
+                allow_net=True,
+            )
+        )
+        frontmatter = {}
+
+        perms = get_sandbox_permissions_for_command(frontmatter, global_config)
+
+        assert perms.allow_read == ["/home"]
+        assert perms.allow_net is True
+
+    def test_merges_command_specific_permissions(self):
+        """Should merge command-specific permissions with global defaults."""
+        global_config = SandboxConfig(
+            default_permissions=SandboxPermissions(
+                allow_read=["/home"],
+                allow_write=[],
+                allow_net=False,
+                allow_env=[],
+                allow_run=False,
+            )
+        )
+        frontmatter = {
+            "sandbox_permissions": {
+                "allow_read": ["/tmp"],
+                "allow_net": True,
+            }
+        }
+
+        perms = get_sandbox_permissions_for_command(frontmatter, global_config)
+
+        # Command-specific should override
+        assert perms.allow_read == ["/tmp"]
+        assert perms.allow_net is True
+        # Global should remain when not overridden
+        assert perms.allow_write == []
+        assert perms.allow_env == []
+        assert perms.allow_run is False
+
+    def test_returns_defaults_when_frontmatter_not_dict(self):
+        """Should return global defaults when sandbox_permissions is not a dict."""
+        global_config = SandboxConfig(
+            default_permissions=SandboxPermissions(
+                allow_read=["/home"],
+            )
+        )
+        frontmatter = {"sandbox_permissions": "not a dict"}
+
+        perms = get_sandbox_permissions_for_command(frontmatter, global_config)
+
+        assert perms.allow_read == ["/home"]
+
+    def test_partial_override(self):
+        """Should only override specified permissions."""
+        global_config = SandboxConfig(
+            default_permissions=SandboxPermissions(
+                allow_read=["/home", "/data"],
+                allow_write=["/tmp"],
+                allow_net=False,
+                allow_env=["HOME", "PATH"],
+                allow_run=["bash"],
+            )
+        )
+        frontmatter = {
+            "sandbox_permissions": {
+                "allow_net": True,
+            }
+        }
+
+        perms = get_sandbox_permissions_for_command(frontmatter, global_config)
+
+        assert perms.allow_read == ["/home", "/data"]
+        assert perms.allow_write == ["/tmp"]
+        assert perms.allow_net is True
+        assert perms.allow_env == ["HOME", "PATH"]
+        assert perms.allow_run == ["bash"]
