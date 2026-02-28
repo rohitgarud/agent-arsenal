@@ -4,6 +4,7 @@ description: URL encode or decode strings
 execution_type: executable
 executable_type: python
 executable_path: url.handle_url
+sandbox: false
 args:
   - name: mode
     type: string

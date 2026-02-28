@@ -4,6 +4,7 @@ description: Generate UUIDs (version 4 or 7)
 execution_type: executable
 executable_type: python
 executable_path: uuid.handle_uuid
+sandbox: false
 args:
   - name: version
     type: integer

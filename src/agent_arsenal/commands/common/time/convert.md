@@ -4,6 +4,7 @@ description: Convert time between timezones
 execution_type: executable
 executable_type: python
 executable_path: time_convert.handle_time_convert
+sandbox: false
 args:
   - name: time
     type: string

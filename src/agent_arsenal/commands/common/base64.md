@@ -4,6 +4,7 @@ description: Encode or decode Base64
 execution_type: executable
 executable_type: python
 executable_path: base64.handle_base64
+sandbox: false
 args:
   - name: mode
     type: string

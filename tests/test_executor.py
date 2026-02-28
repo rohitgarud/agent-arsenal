@@ -469,6 +469,7 @@ description: Test
 execution_type: executable
 executable_type: node
 executable_inline: console.log("Hello " + process.env.NAME)
+sandbox: false
 ---
 """)
 
@@ -489,6 +490,7 @@ description: Test
 execution_type: executable
 executable_type: node
 executable_inline: const data = JSON.parse(process.env.INPUT); console.log(data.key)
+sandbox: false
 ---
 """)
 
@@ -538,3 +540,104 @@ executable_type: node
 
         assert not result.success
         assert "no node.js script specified" in result.error.lower()
+
+
+class TestSandboxIntegration:
+    """Tests for sandbox integration in executor."""
+
+    def test_sandbox_enabled_routes_to_sandbox(self, tmp_path, monkeypatch):
+        """Test execution with sandbox: true routes to sandbox executor."""
+        # Mock the Deno check to return True (simulating Deno available)
+        from agent_arsenal import sandbox as sandbox_module
+
+        monkeypatch.setattr(
+            sandbox_module.DenoSandboxExecutor,
+            "_check_deno_available",
+            lambda self: True,
+        )
+
+        # Mock the sandbox execute to avoid actual execution
+        from agent_arsenal.sandbox import CommandResult as SandboxResult
+
+        def mock_execute(self, execution_type, script, permissions=None, timeout=None):
+            return SandboxResult(
+                success=True,
+                output="sandboxed output",
+                error=None,
+                metadata={"executor": "deno-sandbox"},
+            )
+
+        monkeypatch.setattr(
+            sandbox_module.DenoSandboxExecutor,
+            "execute",
+            mock_execute,
+        )
+
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: prompt
+sandbox: true
+---
+# Test
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute(cmd, {})
+
+        assert result.success
+        assert "sandboxed output" in result.output
+        assert result.metadata.get("executor") == "deno-sandbox"
+
+    def test_sandbox_false_routes_to_direct_execution(self, tmp_path):
+        """Test execution with sandbox: false routes to direct execution."""
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: prompt
+sandbox: false
+---
+# Test Output
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute(cmd, {})
+
+        assert result.success
+        assert "Test Output" in result.output
+
+    def test_missing_deno_returns_error(self, tmp_path, monkeypatch):
+        """Test execution returns appropriate error when Deno is not installed."""
+        # Mock the Deno check to return False (simulating Deno not available)
+        from agent_arsenal import sandbox as sandbox_module
+
+        monkeypatch.setattr(
+            sandbox_module.DenoSandboxExecutor,
+            "_check_deno_available",
+            lambda self: False,
+        )
+
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: prompt
+sandbox: true
+---
+# Test
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute(cmd, {})
+
+        assert not result.success
+        assert "Deno is not installed" in result.error
+        assert "curl -fsSL https://deno.land" in result.error

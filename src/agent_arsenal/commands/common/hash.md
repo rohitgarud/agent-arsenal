@@ -4,6 +4,7 @@ description: Compute cryptographic hashes (MD5, SHA256, SHA512)
 execution_type: executable
 executable_type: python
 executable_path: hash.handle_hash
+sandbox: false
 args:
   - name: algorithm
     type: string

@@ -4,6 +4,7 @@ description: Format, validate, or minify JSON
 execution_type: executable
 executable_type: python
 executable_path: json.handle_json
+sandbox: false
 args:
   - name: input
     type: string

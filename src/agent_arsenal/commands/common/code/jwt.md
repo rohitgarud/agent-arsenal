@@ -4,6 +4,7 @@ description: Decode JWT tokens (read-only)
 execution_type: executable
 executable_type: python
 executable_path: jwt.handle_jwt
+sandbox: false
 args:
   - name: token
     type: string

@@ -11,6 +11,16 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from agent_arsenal.registry import Command
 
+# Sandbox imports
+from agent_arsenal.sandbox import (
+    DenoSandboxExecutor,
+    SandboxConfig,
+)
+from agent_arsenal.config import (
+    get_sandbox_permissions_for_command,
+    load_sandbox_config,
+)
+
 
 @dataclass
 class CommandResult:
@@ -61,6 +71,69 @@ class CommandExecutor:
         handler_info = get_handler_info(fm)
         exec_type = handler_info.get("type", "prompt")
 
+        # Extract sandbox config from frontmatter
+        sandbox_enabled = fm.get("sandbox", True)  # Default: true (sandbox enabled)
+
+        if sandbox_enabled:
+            # Route to sandbox executor
+            try:
+                sandbox_config = load_sandbox_config()
+            except Exception:
+                # Fall back to defaults if config fails
+                sandbox_config = SandboxConfig()
+
+            if not sandbox_config.enabled:
+                # Sandbox disabled globally - execute directly
+                return self._execute_direct(command_obj, args, exec_type, handler_info)
+
+            permissions = get_sandbox_permissions_for_command(
+                fm, sandbox_config
+            )
+
+            # Check Deno availability
+            sandbox_exec = DenoSandboxExecutor(sandbox_config)
+            if not sandbox_exec._check_deno_available():
+                return CommandResult(
+                    success=False,
+                    output="",
+                    error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh"
+                )
+
+            # Execute in sandbox and convert result to executor's CommandResult
+            sandbox_result = sandbox_exec.execute(
+                execution_type=exec_type,
+                script=handler_info.get("path") or handler_info.get("inline", ""),
+                permissions=permissions,
+                timeout=sandbox_config.timeout_seconds
+            )
+            return CommandResult(
+                success=sandbox_result.success,
+                output=sandbox_result.output,
+                error=sandbox_result.error,
+                metadata=sandbox_result.metadata,
+            )
+        else:
+            # Execute directly (no sandbox)
+            return self._execute_direct(command_obj, args, exec_type, handler_info)
+
+    def _execute_direct(
+        self,
+        command_obj: "Command",
+        args: dict[str, Any],
+        exec_type: str,
+        handler_info: dict[str, Any],
+    ) -> CommandResult:
+        """Execute command directly without sandbox.
+
+        Args:
+            command_obj: Command object
+            args: Command arguments
+            exec_type: Execution type (prompt, python, bash, template, node)
+            handler_info: Parsed handler info from frontmatter
+
+        Returns:
+            CommandResult
+        """
         if exec_type == "prompt":
             return self.execute_prompt(command_obj.path, args)
         elif exec_type == "python":

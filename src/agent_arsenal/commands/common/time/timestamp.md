@@ -4,6 +4,7 @@ description: Get current timestamp with optional format and timezone
 execution_type: executable
 executable_type: python
 executable_path: timestamp.handle_timestamp
+sandbox: false
 aliases:
   - now
 args:

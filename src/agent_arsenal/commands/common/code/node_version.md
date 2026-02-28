@@ -4,6 +4,7 @@ description: Get the current Node.js version
 execution_type: executable
 executable_type: node
 executable_inline: console.log(process.version)
+sandbox: false
 args:
   - name: full
     type: boolean
