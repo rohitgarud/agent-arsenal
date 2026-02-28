@@ -204,6 +204,22 @@ def validate_frontmatter(frontmatter: dict[str, Any]) -> dict[str, Any]:
         elif not all(isinstance(a, str) for a in aliases):
             errors.append("'aliases' must be a list of strings")
 
+    # Validate sandbox field
+    if "sandbox" in frontmatter:
+        if not isinstance(frontmatter["sandbox"], bool):
+            errors.append("sandbox must be a boolean")
+
+    # Validate sandbox_permissions field
+    if "sandbox_permissions" in frontmatter:
+        perms = frontmatter["sandbox_permissions"]
+        if not isinstance(perms, dict):
+            errors.append("sandbox_permissions must be a dictionary")
+        else:
+            valid_perm_keys = {"allow_read", "allow_write", "allow_net", "allow_env", "allow_run"}
+            for key in perms:
+                if key not in valid_perm_keys:
+                    errors.append(f"Unknown sandbox permission: {key}")
+
     if errors:
         raise ValidationError(errors)
 
@@ -225,7 +241,11 @@ def get_handler_info(frontmatter: dict[str, Any]) -> dict[str, Any]:
     execution_type = frontmatter.get("execution_type", "prompt")
 
     if execution_type == "prompt":
-        return {"type": "prompt"}
+        return {
+            "type": "prompt",
+            "sandbox": frontmatter.get("sandbox", True),
+            "sandbox_permissions": frontmatter.get("sandbox_permissions"),
+        }
 
     if execution_type == "executable":
         executable_type = frontmatter.get("executable_type", "python")
@@ -234,21 +254,35 @@ def get_handler_info(frontmatter: dict[str, Any]) -> dict[str, Any]:
             return {
                 "type": "python",
                 "path": frontmatter.get("executable_path", ""),
+                "sandbox": frontmatter.get("sandbox", True),
+                "sandbox_permissions": frontmatter.get("sandbox_permissions"),
             }
         elif executable_type == "bash":
             return {
                 "type": "bash",
                 "path": frontmatter.get("executable_path", ""),
                 "inline": frontmatter.get("executable_inline", ""),
+                "sandbox": frontmatter.get("sandbox", True),
+                "sandbox_permissions": frontmatter.get("sandbox_permissions"),
             }
         elif executable_type == "node":
             return {
                 "type": "node",
                 "path": frontmatter.get("executable_path", ""),
                 "inline": frontmatter.get("executable_inline", ""),
+                "sandbox": frontmatter.get("sandbox", True),
+                "sandbox_permissions": frontmatter.get("sandbox_permissions"),
             }
 
     if execution_type == "template":
-        return {"type": "template"}
+        return {
+            "type": "template",
+            "sandbox": frontmatter.get("sandbox", True),
+            "sandbox_permissions": frontmatter.get("sandbox_permissions"),
+        }
 
-    return {"type": "unknown"}
+    return {
+        "type": "unknown",
+        "sandbox": frontmatter.get("sandbox", True),
+        "sandbox_permissions": frontmatter.get("sandbox_permissions"),
+    }

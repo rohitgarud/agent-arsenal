@@ -205,6 +205,85 @@ class TestValidateFrontmatter:
             validate_frontmatter(fm)
         assert "type" in str(exc.value).lower()
 
+    # Sandbox validation tests (Task 4.4)
+    def test_valid_sandbox_true(self):
+        """Test validation passes with sandbox: true."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "sandbox": True,
+        }
+        result = validate_frontmatter(fm)
+        assert result["sandbox"] is True
+
+    def test_valid_sandbox_false(self):
+        """Test validation passes with sandbox: false."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "sandbox": False,
+        }
+        result = validate_frontmatter(fm)
+        assert result["sandbox"] is False
+
+    def test_invalid_sandbox_field(self):
+        """Test validation fails when sandbox is not a boolean."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "sandbox": "yes",
+        }
+        with pytest.raises(ValidationError) as exc:
+            validate_frontmatter(fm)
+        assert "sandbox must be a boolean" in str(exc.value)
+
+    def test_valid_sandbox_permissions(self):
+        """Test validation passes with valid sandbox_permissions."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "sandbox_permissions": {
+                "allow_read": ["/tmp"],
+                "allow_write": ["/tmp"],
+                "allow_net": True,
+                "allow_env": ["HOME"],
+                "allow_run": False,
+            },
+        }
+        result = validate_frontmatter(fm)
+        assert result["sandbox_permissions"]["allow_read"] == ["/tmp"]
+
+    def test_invalid_sandbox_permissions_type(self):
+        """Test validation fails when sandbox_permissions is not a dict."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "sandbox_permissions": "not a dict",
+        }
+        with pytest.raises(ValidationError) as exc:
+            validate_frontmatter(fm)
+        assert "sandbox_permissions must be a dictionary" in str(exc.value)
+
+    def test_invalid_sandbox_permission_keys(self):
+        """Test validation fails with unknown permission keys."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "sandbox_permissions": {
+                "allow_read": ["/tmp"],
+                "invalid_permission": True,
+            },
+        }
+        with pytest.raises(ValidationError) as exc:
+            validate_frontmatter(fm)
+        assert "Unknown sandbox permission" in str(exc.value)
+
 
 class TestGetHandlerInfo:
     """Tests for get_handler_info function."""
@@ -246,3 +325,82 @@ class TestGetHandlerInfo:
         assert info["type"] == "bash"
         assert info["path"] == "scripts/test.sh"
         assert info["inline"] == "echo hello"
+
+    # Sandbox extraction tests (Task 4.5)
+    def test_handler_info_default_sandbox_enabled(self):
+        """Test handler info includes sandbox=true by default."""
+        fm = {
+            "name": "test",
+            "description": "Test",
+            "execution_type": "prompt",
+        }
+        info = get_handler_info(fm)
+        assert info["sandbox"] is True
+
+    def test_handler_info_sandbox_false(self):
+        """Test handler info returns sandbox=false when set."""
+        fm = {
+            "name": "test",
+            "description": "Test",
+            "execution_type": "prompt",
+            "sandbox": False,
+        }
+        info = get_handler_info(fm)
+        assert info["sandbox"] is False
+
+    def test_handler_info_sandbox_permissions(self):
+        """Test handler info includes sandbox_permissions."""
+        fm = {
+            "name": "test",
+            "description": "Test",
+            "execution_type": "prompt",
+            "sandbox_permissions": {"allow_read": ["/tmp"]},
+        }
+        info = get_handler_info(fm)
+        assert info["sandbox_permissions"] == {"allow_read": ["/tmp"]}
+
+    def test_handler_info_python_with_sandbox(self):
+        """Test handler info for python executable includes sandbox fields."""
+        fm = {
+            "name": "test",
+            "description": "Test",
+            "execution_type": "executable",
+            "executable_type": "python",
+            "executable_path": "handlers.test",
+            "sandbox": False,
+            "sandbox_permissions": {"allow_run": True},
+        }
+        info = get_handler_info(fm)
+        assert info["type"] == "python"
+        assert info["sandbox"] is False
+        assert info["sandbox_permissions"] == {"allow_run": True}
+
+    def test_handler_info_bash_with_sandbox(self):
+        """Test handler info for bash executable includes sandbox fields."""
+        fm = {
+            "name": "test",
+            "description": "Test",
+            "execution_type": "executable",
+            "executable_type": "bash",
+            "executable_path": "scripts/test.sh",
+            "sandbox": True,
+        }
+        info = get_handler_info(fm)
+        assert info["type"] == "bash"
+        assert info["sandbox"] is True
+        assert "sandbox_permissions" in info
+
+    def test_handler_info_node_with_sandbox(self):
+        """Test handler info for node executable includes sandbox fields."""
+        fm = {
+            "name": "test",
+            "description": "Test",
+            "execution_type": "executable",
+            "executable_type": "node",
+            "executable_path": "scripts/test.js",
+            "sandbox": True,
+        }
+        info = get_handler_info(fm)
+        assert info["type"] == "node"
+        assert info["sandbox"] is True
+        assert "sandbox_permissions" in info
