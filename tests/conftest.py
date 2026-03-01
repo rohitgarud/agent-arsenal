@@ -7,6 +7,7 @@ from typing import Generator
 import pytest
 
 from agent_arsenal.sandbox import SandboxConfig, SandboxPermissions
+from agent_arsenal.registry import CommandRegistry
 
 
 @pytest.fixture(autouse=True)
@@ -146,3 +147,12 @@ def populated_config(temp_dir: Path, sample_config: dict) -> dict:
         str(temp_dir / "dir2"),
     ]
     return sample_config
+
+
+@pytest.fixture
+def registry(commands_dir: Path) -> CommandRegistry:
+    """Create a CommandRegistry for testing."""
+    reg = CommandRegistry()
+    reg.commands_dir = commands_dir
+    reg.scan_all()
+    return reg

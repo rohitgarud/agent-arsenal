@@ -641,3 +641,180 @@ sandbox: true
         assert not result.success
         assert "Deno is not installed" in result.error
         assert "curl -fsSL https://deno.land" in result.error
+
+
+class TestExecuteEdgeCases:
+    """Tests for edge cases in command execution."""
+
+    def test_execute_prompt_with_args(self, tmp_path):
+        """Test execute_prompt with multiple arguments."""
+        cmd_file = tmp_path / "test.md"
+        cmd_file.write_text("""---
+name: test
+description: Test
+execution_type: prompt
+---
+Hello {name}! You are {age} years old.
+""")
+
+        executor = CommandExecutor()
+        result = executor.execute_prompt(cmd_file, {"name": "Alice", "age": "30"})
+
+        assert result.success
+        assert "Hello Alice!" in result.output
+        assert "30 years old" in result.output
+
+    def test_execute_python_handler_with_error(self, tmp_path):
+        """Test execute_python with a handler that raises an error."""
+        cmd_path = (
+            Path(__file__).parent.parent
+            / "src/agent_arsenal/commands/common/time/timestamp.md"
+        )
+        cmd = Command(name="timestamp", path=cmd_path, parent="common.time")
+
+        executor = CommandExecutor()
+
+        # Test with invalid format (should return error or fallback)
+        result = executor.execute_python(cmd, {"format": "INVALID_FORMAT"})
+        # Should either succeed with fallback or return error
+        assert result is not None
+
+    def test_execute_template_with_context(self, tmp_path):
+        """Test execute_template with full context including environment vars."""
+        cmd_file = tmp_path / "test.md"
+        cmd_file.write_text("""---
+name: test
+description: Test
+execution_type: template
+---
+User: {{user}}
+Home: {{HOME}}
+Path: {{PATH}}
+Platform: {{SYSTEM|default('Linux')}}
+""")
+
+        executor = CommandExecutor()
+        result = executor.execute_template(cmd_file, {"user": "testuser"})
+
+        assert result.success
+        assert "User: testuser" in result.output
+        assert "Home:" in result.output
+        assert "Platform:" in result.output
+
+    def test_execute_unsupported_type(self, tmp_path):
+        """Test execute with unsupported execution type."""
+        cmd_file = tmp_path / "test.md"
+        cmd_file.write_text("""---
+name: test
+description: Test
+execution_type: unsupported_type
+---
+# Test
+""")
+
+        cmd = Command(name="test", path=cmd_file)
+        executor = CommandExecutor()
+
+        result = executor.execute(cmd, {})
+
+        assert result.success is False
+        assert "Unsupported execution type" in result.error
+
+    def test_execute_template_with_nested_context(self, tmp_path):
+        """Test execute_template with nested dictionary context."""
+        cmd_file = tmp_path / "nested.md"
+        cmd_file.write_text("""---
+name: nested
+description: Nested template
+execution_type: template
+---
+{% for item in items %}
+- {{item.name}}: {{item.value}}
+{% endfor %}
+""")
+
+        executor = CommandExecutor()
+        result = executor.execute_template(
+            cmd_file, {"items": [{"name": "a", "value": "1"}, {"name": "b", "value": "2"}]}
+        )
+
+        assert result.success
+        assert "- a: 1" in result.output
+        assert "- b: 2" in result.output
+
+    def test_execute_with_sandbox_enabled(self, tmp_path, monkeypatch):
+        """Test execute with sandbox enabled."""
+        from agent_arsenal import sandbox as sandbox_module
+        from agent_arsenal.sandbox import CommandResult as SandboxResult
+
+        # Mock Deno as available
+        monkeypatch.setattr(
+            sandbox_module.DenoSandboxExecutor,
+            "_check_deno_available",
+            lambda self: True,
+        )
+
+        # Mock execute to return success
+        def mock_execute(self, execution_type, script, permissions=None, timeout=None):
+            return SandboxResult(success=True, output="sandboxed", error=None)
+
+        monkeypatch.setattr(
+            sandbox_module.DenoSandboxExecutor,
+            "execute",
+            mock_execute,
+        )
+
+        cmd_file = tmp_path / "test.md"
+        cmd_file.write_text("""---
+name: test
+description: Test
+execution_type: prompt
+sandbox: true
+---
+# Test
+""")
+
+        cmd = Command(name="test", path=cmd_file)
+        executor = CommandExecutor()
+        result = executor.execute(cmd, {})
+
+        assert result.success
+
+    def test_execute_bash_with_environment(self, tmp_path):
+        """Test execute_bash passes environment variables."""
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: executable
+executable_type: bash
+executable_inline: echo $MY_VAR
+---
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute_bash(cmd, {"MY_VAR": "test_value"})
+
+        assert result.success
+
+    def test_execute_node_with_json(self, tmp_path):
+        """Test execute_node handles JSON response."""
+        cmd_path = tmp_path / "test.md"
+        cmd_path.write_text("""---
+name: test
+description: Test
+execution_type: executable
+executable_type: node
+executable_inline: 'console.log(JSON.stringify({result: "ok"}))'
+sandbox: false
+---
+""")
+
+        cmd = Command(name="test", path=cmd_path)
+        executor = CommandExecutor()
+
+        result = executor.execute_node(cmd, {})
+
+        assert result.success

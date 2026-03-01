@@ -23,20 +23,27 @@ def _uuid7() -> str:
     # Pack timestamp into 6 bytes (48 bits)
     ts_bytes = ts.to_bytes(6, byteorder="big")
 
-    # Generate random bytes (10 bytes = 80 bits)
+    # Generate random bytes
     rand_bytes = random.randbytes(10)
 
-    # Set version (7) in bits 12-15 of byte 6
-    ts_bytes = bytearray(ts_bytes)
-    ts_bytes[5] = (ts_bytes[5] & 0x0F) | (7 << 4)
+    # Build the UUID bytes
+    uuid_bytes = bytearray(16)
 
-    # Set variant (RFC 4122) in bits 16-17 of byte 8
-    rand_bytes = bytearray(rand_bytes)
-    rand_bytes[0] = (rand_bytes[0] & 0x3F) | 0x80
+    # 0-5: timestamp (48 bits)
+    uuid_bytes[0:6] = ts_bytes
 
-    # Combine and format
-    combined = bytes(ts_bytes) + bytes(rand_bytes)
-    return str(uuid_module.UUID(bytes=combined))
+    # 6: version = 7 in upper 4 bits
+    uuid_bytes[6] = 0x70 | (uuid_bytes[6] & 0x0F)
+
+    # 7: unchanged (lower timestamp bits)
+
+    # 8: variant = RFC 4122 (0x8, 0x9, 0xA, 0xB) in upper 2 bits
+    uuid_bytes[8] = 0x80 | (uuid_bytes[8] & 0x3F)
+
+    # 9-15: random from rand_bytes
+    uuid_bytes[9:16] = rand_bytes[0:7]
+
+    return str(uuid_module.UUID(bytes=bytes(uuid_bytes)))
 
 
 def handle_uuid(

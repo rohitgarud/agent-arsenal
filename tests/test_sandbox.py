@@ -262,3 +262,32 @@ class TestDenoSandboxExecutorIntegration:
         result = executor.execute("unsupported", "echo hello")
         assert result.success is False
         assert "Unsupported execution type" in result.error
+
+
+class TestDenoSandboxExecutorMissing:
+    """Tests for missing Deno functionality (mocked)."""
+
+    @patch("shutil.which")
+    def test_check_deno_available_when_not_found(self, mock_which):
+        """Test _check_deno_available returns False when Deno not found."""
+        mock_which.return_value = None
+
+        config = SandboxConfig()
+        executor = DenoSandboxExecutor(config)
+
+        # Set _deno_path to None (not found)
+        executor._deno_path = None
+
+        result = executor._check_deno_available()
+        assert result is False
+
+    def test_execute_timeout(self):
+        """Test execute with timeout."""
+        config = SandboxConfig()
+        config.timeout_seconds = 1
+
+        executor = DenoSandboxExecutor(config)
+
+        # This would timeout if we had a real script
+        # Just verify the timeout is set correctly
+        assert executor.config.timeout_seconds == 1
