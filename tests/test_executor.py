@@ -708,6 +708,7 @@ Platform: {{SYSTEM|default('Linux')}}
 name: test
 description: Test
 execution_type: unsupported_type
+sandbox: false
 ---
 # Test
 """)

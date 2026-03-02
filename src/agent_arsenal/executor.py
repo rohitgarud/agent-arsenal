@@ -146,7 +146,7 @@ class CommandExecutor:
         return CommandResult(
             success=False,
             output="",
-            error=f"Unknown execution type: {exec_type}",
+            error=f"Unsupported execution type: {exec_type}",
         )
 
     def _find_handler_module(self, command_obj: "Command", handler_path: str):
