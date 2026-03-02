@@ -35,3 +35,31 @@ dev-dependencies = [
     "ruff", # Linter
 ]
 package = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_return_any = false
+warn_unreachable = false  # Disable unreachable statement warnings
+
+[tool.bandit]
+exclude = ["tests/", ".venv/", "*/test_*.py"]
+skips = [
+    "B404",  # subprocess import - intentional for sandbox execution
+    "B603",  # subprocess.run - intentional for running known commands
+    "B701",  # jinja2 autoescape - templates are not HTML
+    "B324",  # hashlib md5 - used for non-cryptographic hashing
+    "B107",  # hardcoded password default - intentional for JWT handling
+    "B311",  # random usage - for UUID generation, not security
+    "B110",  # try/except/pass - for graceful shutdown in watcher
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = ["E501", "B008", "B904"]

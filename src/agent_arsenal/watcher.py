@@ -3,8 +3,9 @@
 import logging
 import threading
 import time
+from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from agent_arsenal.registry import CommandRegistry
@@ -50,8 +51,8 @@ class CommandWatcher:
         self.debounce_ms = debounce_ms
         self._watching = False
         self._stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
-        self._generator: Optional[Generator] = None
+        self._thread: threading.Thread | None = None
+        self._generator: Generator | None = None
 
     def start(self):
         """Start watching for file changes in background thread."""

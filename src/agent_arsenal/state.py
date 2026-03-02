@@ -29,7 +29,7 @@ class ArsenalState:
     - PROJECT: Project-specific state
     """
 
-    _instance: "ArsenalState" | None = None
+    _instance: ArsenalState | None = None
     _lock = threading.Lock()
     _initialized: bool
 
@@ -43,7 +43,7 @@ class ArsenalState:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize state manager."""
         if self._initialized:
             return

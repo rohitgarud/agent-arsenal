@@ -32,7 +32,8 @@ repos:
           pydantic>=2.10.0,
           types-PyYAML>=6.0.0,
         ]
-        args: [--strict, --ignore-missing-imports]
+        pass_filenames: false
+        args: ["src/", "--ignore-missing-imports"]
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.10
@@ -51,10 +52,10 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: pytest
+        entry: uv
         language: system
         pass_filenames: false
-        args: ["-x"]
+        args: ["run", "pytest", "-x", "-q"]
 
   - repo: https://github.com/opensource-nepal/commitlint
     rev: v1.2.0

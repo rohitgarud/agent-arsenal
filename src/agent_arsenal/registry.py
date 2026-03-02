@@ -24,12 +24,6 @@ class CommandGroup:
     commands: list[Command] = field(default_factory=list)
     subgroups: list["CommandGroup"] = field(default_factory=list)
 
-    def __post_init__(self):
-        if self.commands is None:
-            self.commands = []
-        if self.subgroups is None:
-            self.subgroups = []
-
 
 class CommandRegistry:
     """Registry for discovering and managing commands from the commands/ folder."""

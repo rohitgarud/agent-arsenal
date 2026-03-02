@@ -65,12 +65,12 @@ class TestHandleTimestamp:
         # Should return valid timestamp
         assert len(result) >= 10
 
-    def test_America_New_York_timezone(self):
+    def test_america_new_york_timezone(self):
         """Test named timezone."""
         result = handle_timestamp(tz="America/New_York")
         assert "Error" not in result
 
-    def test_Europe_London_timezone(self):
+    def test_europe_london_timezone(self):
         """Test another named timezone."""
         result = handle_timestamp(tz="Europe/London")
         assert "Error" not in result

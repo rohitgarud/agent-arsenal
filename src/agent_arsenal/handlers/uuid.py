@@ -8,8 +8,8 @@ def _uuid7() -> str:
 
     UUID v7 is not in Python standard library yet, so we implement it.
     """
-    import time
     import random
+    import time
 
     # Get current timestamp in milliseconds
     ts = int(time.time() * 1000)

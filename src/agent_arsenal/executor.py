@@ -12,13 +12,13 @@ if TYPE_CHECKING:
     from agent_arsenal.registry import Command
 
 # Sandbox imports
-from agent_arsenal.sandbox import (
-    DenoSandboxExecutor,
-    SandboxConfig,
-)
 from agent_arsenal.config import (
     get_sandbox_permissions_for_command,
     load_sandbox_config,
+)
+from agent_arsenal.sandbox import (
+    DenoSandboxExecutor,
+    SandboxConfig,
 )
 
 
@@ -58,7 +58,7 @@ class CommandExecutor:
         except Exception as e:
             return CommandResult(success=False, output="", error=str(e))
 
-    def execute(self, command_obj: "Command", args: dict[str, Any]) -> CommandResult:
+    def execute(self, command_obj: Command, args: dict[str, Any]) -> CommandResult:
         """Execute a command based on its execution type."""
         from agent_arsenal.parser import (
             get_handler_info,
@@ -116,7 +116,7 @@ class CommandExecutor:
 
     def _execute_direct(
         self,
-        command_obj: "Command",
+        command_obj: Command,
         args: dict[str, Any],
         exec_type: str,
         handler_info: dict[str, Any],
@@ -149,7 +149,7 @@ class CommandExecutor:
             error=f"Unsupported execution type: {exec_type}",
         )
 
-    def _find_handler_module(self, command_obj: "Command", handler_path: str):
+    def _find_handler_module(self, command_obj: Command, handler_path: str):
         """Find handler module from executable_path.
 
         Supports:
@@ -208,7 +208,7 @@ class CommandExecutor:
             ) from e
 
     def execute_python(
-        self, command_obj: "Command", args: dict[str, Any]
+        self, command_obj: Command, args: dict[str, Any]
     ) -> CommandResult:
         """Execute Python function command.
 
@@ -252,7 +252,7 @@ class CommandExecutor:
 
     def _execute_subprocess(
         self,
-        command: "Command",
+        command: Command,
         args: dict[str, Any],
         runtime: str,
         script_path: str | None = None,
@@ -346,9 +346,7 @@ class CommandExecutor:
 
         return CommandResult(success=True, output=output.strip())
 
-    def execute_bash(
-        self, command_obj: "Command", args: dict[str, Any]
-    ) -> CommandResult:
+    def execute_bash(self, command_obj: Command, args: dict[str, Any]) -> CommandResult:
         """Execute bash script command.
 
         Args:
@@ -381,9 +379,7 @@ class CommandExecutor:
         except Exception as e:
             return CommandResult(success=False, output="", error=str(e))
 
-    def execute_node(
-        self, command_obj: "Command", args: dict[str, Any]
-    ) -> CommandResult:
+    def execute_node(self, command_obj: Command, args: dict[str, Any]) -> CommandResult:
         """Execute Node.js script command.
 
         Args:
@@ -480,7 +476,7 @@ class CommandExecutor:
 
     def render_instructions(
         self,
-        command: "Command",
+        command: Command,
         args: dict[str, Any],
         context: dict[str, Any] | None = None,
     ) -> str:
@@ -508,10 +504,10 @@ class CommandExecutor:
             return ""
 
         # Use description as instructions if available
-        instructions = frontmatter.get("instructions", "")
+        instructions: str = frontmatter.get("instructions", "")
         if not instructions:
             # Fall back to description
-            instructions = frontmatter.get("description", "")
+            instructions = str(frontmatter.get("description", ""))
 
         if not instructions:
             return ""
@@ -534,7 +530,7 @@ class CommandExecutor:
 
 
 def render_instructions(
-    command: "Command",
+    command: Command,
     args: dict[str, Any],
     context: dict[str, Any] | None = None,
 ) -> str:

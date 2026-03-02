@@ -1,7 +1,7 @@
 """JWT command handler."""
 
-import json
 import base64
+import json
 
 
 def handle_jwt(

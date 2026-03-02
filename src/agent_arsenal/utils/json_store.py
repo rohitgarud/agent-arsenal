@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class JSONStore:
         """
         self.file_path = file_path
 
-    def load(self) -> Dict[str, Any]:
+    def load(self) -> dict[str, Any]:
         """Load data from JSON file.
 
         If the file doesn't exist, returns an empty dictionary.
@@ -46,15 +46,16 @@ class JSONStore:
             content = self.file_path.read_text(encoding="utf-8")
             if not content.strip():
                 return {}
-            return json.loads(content)
+            data: dict[str, Any] = json.loads(content)
+            return data
         except json.JSONDecodeError as e:
             logger.warning("Invalid JSON in %s: %s", self.file_path, e)
             return {}
-        except IOError as e:
+        except OSError as e:
             logger.error("Failed to read %s: %s", self.file_path, e)
             return {}
 
-    def save(self, data: Dict[str, Any]) -> None:
+    def save(self, data: dict[str, Any]) -> None:
         """Save data to JSON file with atomic write.
 
         Creates parent directories if they don't exist.
@@ -76,7 +77,7 @@ class JSONStore:
                 json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
             )
             temp_path.replace(self.file_path)
-        except IOError as e:
+        except OSError as e:
             logger.error("Failed to write %s: %s", self.file_path, e)
             if temp_path.exists():
                 temp_path.unlink()
@@ -100,7 +101,7 @@ class JSONStore:
             try:
                 self.file_path.unlink()
                 return True
-            except IOError as e:
+            except OSError as e:
                 logger.error("Failed to delete %s: %s", self.file_path, e)
                 return False
         return False

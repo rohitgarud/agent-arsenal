@@ -92,4 +92,3 @@
 - **Allowed**: Read files, run tests, format/lint, change `src/agent_arsenal` and `tests`, update docs and command markdown under `commands/`
 - **Ask first**: Add or bump dependencies, change build/publish config, alter supported Python versions
 - **Never**: Commit secrets, disable security or lint checks, break documented public API without a plan
-

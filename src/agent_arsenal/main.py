@@ -9,10 +9,13 @@ import typer
 from rich.console import Console
 
 from agent_arsenal import __version__
-from agent_arsenal.config import get_command_directories
+from agent_arsenal.config import (
+    get_command_directories,
+    load_sandbox_config,
+    save_sandbox_config,
+)
 from agent_arsenal.executor import CommandExecutor
 from agent_arsenal.registry import Command, CommandGroup, CommandRegistry
-from agent_arsenal.config import load_sandbox_config, save_sandbox_config
 
 # Lazy initialization for registry
 _registry: CommandRegistry | None = None
@@ -422,7 +425,7 @@ def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
         import functools
 
         # Build the signature with proper annotations
-        from inspect import signature, Parameter
+        from inspect import Parameter, signature
 
         # Create parameters based on args_def
         params = []

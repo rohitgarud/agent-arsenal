@@ -1,7 +1,6 @@
 """Timestamp command handler."""
 
 from datetime import datetime
-
 from zoneinfo import ZoneInfo
 
 
