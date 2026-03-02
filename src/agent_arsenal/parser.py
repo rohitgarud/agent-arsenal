@@ -215,7 +215,13 @@ def validate_frontmatter(frontmatter: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(perms, dict):
             errors.append("sandbox_permissions must be a dictionary")
         else:
-            valid_perm_keys = {"allow_read", "allow_write", "allow_net", "allow_env", "allow_run"}
+            valid_perm_keys = {
+                "allow_read",
+                "allow_write",
+                "allow_net",
+                "allow_env",
+                "allow_run",
+            }
             for key in perms:
                 if key not in valid_perm_keys:
                     errors.append(f"Unknown sandbox permission: {key}")

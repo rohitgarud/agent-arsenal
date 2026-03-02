@@ -184,7 +184,9 @@ class TestExternalCommands:
 
     def test_run_hash_command(self, runner):
         """Test running hash command."""
-        result = runner.invoke(app, ["common", "hash", "--input", "test", "--algorithm", "sha256"])
+        result = runner.invoke(
+            app, ["common", "hash", "--input", "test", "--algorithm", "sha256"]
+        )
         # Should return hash output
         assert result is not None
 

@@ -37,7 +37,7 @@ class TestHandleUrl:
     def test_decode_percent_encoding(self):
         """Test decoding percent-encoded characters."""
         result = handle_url(mode="decode", input="%3C%3E%22%27")
-        assert result == '<>"\''
+        assert result == "<>\"'"
 
     def test_decode_empty_input(self):
         """Test decoding with empty input."""

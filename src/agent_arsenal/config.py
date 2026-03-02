@@ -367,7 +367,9 @@ def save_sandbox_config(config: SandboxConfig) -> None:
     existing_config["sandbox"] = sandbox_data
 
     try:
-        config_path.write_text(json.dumps(existing_config, indent=2) + "\n", encoding="utf-8")
+        config_path.write_text(
+            json.dumps(existing_config, indent=2) + "\n", encoding="utf-8"
+        )
     except PermissionError as e:
         raise PermissionError(f"Cannot write config file {config_path}: {e}") from e
 

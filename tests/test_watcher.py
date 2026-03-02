@@ -201,9 +201,11 @@ class TestEnableHotReload:
         from agent_arsenal.registry import CommandRegistry
 
         # Mock CommandWatcher to avoid actual watching
-        with unittest.mock.patch.object(CommandWatcher, '__init__', lambda self, *a, **kw: None):
-            with unittest.mock.patch.object(CommandWatcher, 'start'):
-                with unittest.mock.patch.object(CommandWatcher, 'stop'):
+        with unittest.mock.patch.object(
+            CommandWatcher, "__init__", lambda self, *a, **kw: None
+        ):
+            with unittest.mock.patch.object(CommandWatcher, "start"):
+                with unittest.mock.patch.object(CommandWatcher, "stop"):
                     reg = CommandRegistry(commands_dir=tmp_path)
                     result = enable_hot_reload(tmp_path, reg, debounce_ms=100)
 

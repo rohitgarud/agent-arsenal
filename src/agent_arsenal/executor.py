@@ -86,9 +86,7 @@ class CommandExecutor:
                 # Sandbox disabled globally - execute directly
                 return self._execute_direct(command_obj, args, exec_type, handler_info)
 
-            permissions = get_sandbox_permissions_for_command(
-                fm, sandbox_config
-            )
+            permissions = get_sandbox_permissions_for_command(fm, sandbox_config)
 
             # Check Deno availability
             sandbox_exec = DenoSandboxExecutor(sandbox_config)
@@ -96,7 +94,7 @@ class CommandExecutor:
                 return CommandResult(
                     success=False,
                     output="",
-                    error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh"
+                    error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh",
                 )
 
             # Execute in sandbox and convert result to executor's CommandResult
@@ -104,7 +102,7 @@ class CommandExecutor:
                 execution_type=exec_type,
                 script=handler_info.get("path") or handler_info.get("inline", ""),
                 permissions=permissions,
-                timeout=sandbox_config.timeout_seconds
+                timeout=sandbox_config.timeout_seconds,
             )
             return CommandResult(
                 success=sandbox_result.success,

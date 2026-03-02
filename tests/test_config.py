@@ -267,7 +267,9 @@ class TestUserCommandsAutoDiscovery:
 class TestLoadSandboxConfig:
     """Tests for load_sandbox_config function."""
 
-    def test_returns_default_when_file_missing(self, monkeypatch, mock_config_file: Path):
+    def test_returns_default_when_file_missing(
+        self, monkeypatch, mock_config_file: Path
+    ):
         """Should return default config when file doesn't exist."""
         # Don't write any file - the isolate_config fixture creates empty dir
         with patch("agent_arsenal.sandbox.DenoSandboxExecutor") as mock_executor:
@@ -295,28 +297,28 @@ class TestLoadSandboxConfig:
             assert config.timeout_seconds == 30
             assert isinstance(config.default_permissions, SandboxPermissions)
 
-    def test_parses_valid_sandbox_config(
-        self, monkeypatch, tmp_path: Path
-    ):
+    def test_parses_valid_sandbox_config(self, monkeypatch, tmp_path: Path):
         """Should parse valid sandbox config from file."""
         # Write to the actual config path that get_config_path returns
         config_path = get_config_path()
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(
-            json.dumps({
-                "command_directories": [],
-                "sandbox": {
-                    "enabled": False,
-                    "timeout_seconds": 60,
-                    "default_permissions": {
-                        "allow_read": ["/tmp"],
-                        "allow_write": ["/tmp"],
-                        "allow_net": True,
-                        "allow_env": ["HOME"],
-                        "allow_run": ["bash"],
+            json.dumps(
+                {
+                    "command_directories": [],
+                    "sandbox": {
+                        "enabled": False,
+                        "timeout_seconds": 60,
+                        "default_permissions": {
+                            "allow_read": ["/tmp"],
+                            "allow_write": ["/tmp"],
+                            "allow_net": True,
+                            "allow_env": ["HOME"],
+                            "allow_run": ["bash"],
+                        },
                     },
-                },
-            })
+                }
+            )
         )
 
         with patch("agent_arsenal.sandbox.DenoSandboxExecutor") as mock_executor:
@@ -340,12 +342,14 @@ class TestLoadSandboxConfig:
         config_path = get_config_path()
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(
-            json.dumps({
-                "sandbox": {
-                    "enabled": True,
-                    "timeout_seconds": 30,
-                },
-            })
+            json.dumps(
+                {
+                    "sandbox": {
+                        "enabled": True,
+                        "timeout_seconds": 30,
+                    },
+                }
+            )
         )
 
         with patch("agent_arsenal.sandbox.DenoSandboxExecutor") as mock_executor:
@@ -376,7 +380,9 @@ class TestSaveSandboxConfig:
             allow_env=["HOME"],
             allow_run=False,
         )
-        config = SandboxConfig(enabled=True, timeout_seconds=60, default_permissions=perms)
+        config = SandboxConfig(
+            enabled=True, timeout_seconds=60, default_permissions=perms
+        )
         save_sandbox_config(config)
 
         config_path = get_config_path()
@@ -401,7 +407,10 @@ class TestSaveSandboxConfig:
         save_sandbox_config(config)
 
         content = json.loads(get_config_path().read_text())
-        assert content["sandbox"]["default_permissions"]["allow_run"] == ["bash", "python"]
+        assert content["sandbox"]["default_permissions"]["allow_run"] == [
+            "bash",
+            "python",
+        ]
 
 
 class TestGetSandboxPermissionsForCommand:

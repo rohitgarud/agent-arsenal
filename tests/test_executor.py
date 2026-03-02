@@ -735,7 +735,8 @@ execution_type: template
 
         executor = CommandExecutor()
         result = executor.execute_template(
-            cmd_file, {"items": [{"name": "a", "value": "1"}, {"name": "b", "value": "2"}]}
+            cmd_file,
+            {"items": [{"name": "a", "value": "1"}, {"name": "b", "value": "2"}]},
         )
 
         assert result.success

@@ -31,6 +31,7 @@ class ArsenalState:
 
     _instance: "ArsenalState" | None = None
     _lock = threading.Lock()
+    _initialized: bool
 
     def __new__(cls):
         """Singleton pattern implementation with thread safety."""

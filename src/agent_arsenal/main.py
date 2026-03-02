@@ -174,7 +174,9 @@ def sandbox_set_permissions(
         None, "--allow-net", help="Allow network access"
     ),
     allow_env: str | None = typer.Option(
-        None, "--allow-env", help="Comma-separated list of allowed environment variables"
+        None,
+        "--allow-env",
+        help="Comma-separated list of allowed environment variables",
     ),
     allow_run: bool | None = typer.Option(
         None, "--allow-run", help="Allow subprocess spawning"
