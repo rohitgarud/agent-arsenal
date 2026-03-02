@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-
 from agent_arsenal.utils.json_store import JSONStore
 
 
@@ -149,7 +148,7 @@ class TestJSONStore:
         store = JSONStore(file_path)
 
         # Mock unlink to raise error
-        with patch.object(Path, "unlink", side_effect=IOError("Delete failed")):
+        with patch.object(Path, "unlink", side_effect=OSError("Delete failed")):
             result = store.delete()
 
         assert result is False
@@ -162,7 +161,7 @@ class TestJSONStore:
         store = JSONStore(file_path)
 
         # Mock read_text to raise error
-        with patch.object(Path, "read_text", side_effect=IOError("Read failed")):
+        with patch.object(Path, "read_text", side_effect=OSError("Read failed")):
             result = store.load()
 
         assert result == {}

@@ -2,7 +2,6 @@
 
 import json
 
-
 from agent_arsenal.state import ArsenalState, Scope, state
 
 

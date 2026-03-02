@@ -1,13 +1,13 @@
 """Pytest fixtures for Agent Arsenal tests."""
 
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
-from agent_arsenal.sandbox import SandboxConfig, SandboxPermissions
 from agent_arsenal.registry import CommandRegistry
+from agent_arsenal.sandbox import SandboxConfig, SandboxPermissions
 
 
 @pytest.fixture(autouse=True)

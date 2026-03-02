@@ -1,7 +1,8 @@
 """Tests for UUID handler."""
 
 import uuid as uuid_module
-from agent_arsenal.handlers.uuid import handle_uuid, _uuid7
+
+from agent_arsenal.handlers.uuid import _uuid7, handle_uuid
 
 
 class TestHandleUuid:

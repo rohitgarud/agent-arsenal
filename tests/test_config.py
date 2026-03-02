@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-
 from agent_arsenal.config import (
     DEFAULT_CONFIG,
     add_command_directory,

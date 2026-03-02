@@ -1,6 +1,6 @@
 """Tests for base64 handler."""
 
-from agent_arsenal.handlers.base64 import handle_base64, _wrap_text
+from agent_arsenal.handlers.base64 import _wrap_text, handle_base64
 
 
 class TestHandleBase64:

@@ -2,7 +2,6 @@
 
 import time
 
-
 from agent_arsenal.watcher import CommandWatcher
 
 
@@ -197,8 +196,9 @@ class TestEnableHotReload:
     def test_enable_hot_reload_returns_cleanup_function(self, tmp_path):
         """Test enable_hot_reload returns a cleanup function."""
         import unittest.mock
-        from agent_arsenal.watcher import CommandWatcher, enable_hot_reload
+
         from agent_arsenal.registry import CommandRegistry
+        from agent_arsenal.watcher import CommandWatcher, enable_hot_reload
 
         # Mock CommandWatcher to avoid actual watching
         with unittest.mock.patch.object(

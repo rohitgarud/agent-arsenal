@@ -1,14 +1,15 @@
 """Tests for the parser module."""
 
-import pytest
 from pathlib import Path
 
+import pytest
+
 from agent_arsenal.parser import (
+    ValidationError,
+    get_handler_info,
     parse_markdown_command,
     split_frontmatter,
     validate_frontmatter,
-    get_handler_info,
-    ValidationError,
 )
 
 
