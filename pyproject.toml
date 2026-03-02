@@ -24,7 +24,10 @@ build-backend = "uv_build"
 agent-arsenal = { workspace = true }
 
 [tool.uv]
-dev-dependencies = [
+package = true
+
+[dependency-groups]
+dev = [
     "watchfiles>=0.21.0", # For hot reload
     "pytest>=7.0.0", # For testing
     "pytest-xdist>=3.0.0", # Parallel tests (-n auto)
@@ -33,8 +36,8 @@ dev-dependencies = [
     "types-PyYAML", # Type stubs for PyYAML
     "mypy>=1.0.0", # Type checker
     "ruff", # Linter
+    "bandit", # Security linter
 ]
-package = true
 
 [tool.mypy]
 python_version = "3.12"
