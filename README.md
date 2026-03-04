@@ -15,14 +15,32 @@ arsenal --help
 # Generate a UUID
 arsenal common uuid
 
-# Get current timestamp
-arsenal common time now
+# Alias for uuid
+arsenal common guid
+
+# Compute SHA256 hash
+arsenal common hash --input "mysecret"
 
 # Encode to Base64
 arsenal common base64 --input "hello world"
 
-# Hash a string
-arsenal common hash --input "mysecret"
+# Format/validate JSON
+arsenal common code json --input '{"key":"value"}'
+
+# Get current timestamp
+arsenal common time now
+
+# Store a value
+arsenal state set mykey "myvalue"
+
+# Retrieve stored value
+arsenal state get mykey
+
+# List external directories
+arsenal config external-dir list
+
+# Watch for command changes
+arsenal watch
 ```
 
 ## Installation
@@ -62,6 +80,58 @@ If you've made changes and need to refresh:
 ```bash
 uv tool install . --editable --force
 ```
+
+## Command Reference
+
+### Root Commands
+
+| Command | Description |
+|---------|-------------|
+| `watch [--debounce MS]` | Watch .md files for changes and auto-reload |
+
+### Common Commands
+
+| Command | Description |
+|---------|-------------|
+| `common uuid` / `common guid` | Generate UUID (v4 random or v7 time-ordered) |
+| `common hash --input TEXT [--algorithm md5\|sha256\|sha512]` | Compute hash |
+| `common base64 --input TEXT [--mode encode\|decode]` | Base64 encode/decode |
+| `common code json --input TEXT [--mode format\|validate\|minify]` | JSON utilities |
+| `common code url --input TEXT [--mode encode\|decode]` | URL encode/decode |
+| `common code jwt --token TEXT [--part header\|payload]` | Decode JWT |
+| `common code node_version` | Get Node.js version |
+| `common time now` / `common timestamp` | Get current timestamp |
+| `common time convert --input TEXT --from TZ --to TZ` | Timezone conversion |
+
+### Config Commands
+
+| Command | Description |
+|---------|-------------|
+| `config external-dir add <path>` | Add external command directory |
+| `config external-dir remove <path>` | Remove directory |
+| `config external-dir list` | List all directories |
+| `config sandbox show` | Display sandbox config |
+| `config sandbox set-timeout <seconds>` | Set timeout |
+| `config sandbox set-permissions <flags>` | Set permissions |
+| `config sandbox enable` | Enable sandbox |
+| `config sandbox disable` | Disable sandbox |
+
+### State Commands
+
+| Command | Description |
+|---------|-------------|
+| `state get <key> [--scope session\|persistent\|project]` | Retrieve stored value |
+| `state set <key> <value> [--scope] [--persist]` | Store a value |
+| `state list [--scope]` | List all keys |
+| `state clear [--scope] [--all]` | Clear state |
+
+### State Scopes
+
+| Scope | Storage Location | Use Case |
+|-------|------------------|----------|
+| `session` | Memory only | Temporary data |
+| `persistent` | `~/.agent-arsenal/state.json` | Cross-session data |
+| `project` | `./.arsenal-state` in project dir | Project-specific data |
 
 ## Usage
 
@@ -326,4 +396,4 @@ Commands are stored as markdown files in `src/agent_arsenal/commands/`.
 
 ## License
 
-MIT
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for full text.
