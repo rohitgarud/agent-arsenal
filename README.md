@@ -15,14 +15,32 @@ arsenal --help
 # Generate a UUID
 arsenal common uuid
 
-# Get current timestamp
-arsenal common time now
+# Alias for uuid
+arsenal common guid
+
+# Compute SHA256 hash
+arsenal common hash --input "mysecret"
 
 # Encode to Base64
 arsenal common base64 --input "hello world"
 
-# Hash a string
-arsenal common hash --input "mysecret"
+# Format/validate JSON
+arsenal common code json --input '{"key":"value"}'
+
+# Get current timestamp
+arsenal common time now
+
+# Store a value
+arsenal state set mykey "myvalue"
+
+# Retrieve stored value
+arsenal state get mykey
+
+# List external directories
+arsenal config external-dir list
+
+# Watch for command changes
+arsenal watch
 ```
 
 ## Installation
@@ -63,6 +81,58 @@ If you've made changes and need to refresh:
 uv tool install . --editable --force
 ```
 
+## Command Reference
+
+### Root Commands
+
+| Command | Description |
+|---------|-------------|
+| `watch [--debounce MS]` | Watch .md files for changes and auto-reload |
+
+### Common Commands
+
+| Command | Description |
+|---------|-------------|
+| `common uuid` / `common guid` | Generate UUID (v4 random or v7 time-ordered) |
+| `common hash --input TEXT [--algorithm md5\|sha256\|sha512]` | Compute hash |
+| `common base64 --input TEXT [--mode encode\|decode]` | Base64 encode/decode |
+| `common code json --input TEXT [--mode format\|validate\|minify]` | JSON utilities |
+| `common code url --input TEXT [--mode encode\|decode]` | URL encode/decode |
+| `common code jwt --token TEXT [--part header\|payload]` | Decode JWT |
+| `common code node_version` | Get Node.js version |
+| `common time now` / `common timestamp` | Get current timestamp |
+| `common time convert --time TEXT --from-tz TZ --to-tz TZ` | Timezone conversion |
+
+### Config Commands
+
+| Command | Description |
+|---------|-------------|
+| `config external-dir add <path>` | Add external command directory |
+| `config external-dir remove <path>` | Remove directory |
+| `config external-dir list` | List all directories |
+| `config sandbox show` | Display sandbox config |
+| `config sandbox set-timeout <seconds>` | Set timeout |
+| `config sandbox set-permissions [--allow-read PATHS] [--allow-write PATHS] [--allow-net] [--allow-env VARS] [--allow-run]` | Set permissions |
+| `config sandbox enable` | Enable sandbox |
+| `config sandbox disable` | Disable sandbox |
+
+### State Commands
+
+| Command | Description |
+|---------|-------------|
+| `state get <key> [--scope session\|persistent\|project]` | Retrieve stored value |
+| `state set <key> <value> [--scope] [--persist]` | Store a value |
+| `state list [--scope]` | List all keys |
+| `state clear [--scope] [--all]` | Clear state |
+
+### State Scopes
+
+| Scope | Storage Location | Use Case |
+|-------|------------------|----------|
+| `session` | Memory only | Temporary data |
+| `persistent` | `~/.agent-arsenal/state.json` | Cross-session data |
+| `project` | `./.arsenal-state` in project dir | Project-specific data |
+
 ## Usage
 
 Once installed, you can run the CLI from anywhere:
@@ -90,6 +160,27 @@ arsenal config external-dir remove /path/to/commands
 
 # List all configured directories
 arsenal config external-dir list
+```
+
+### Sandbox Configuration
+
+Manage sandbox security settings for executing Python/hybrid commands:
+
+```bash
+# View sandbox configuration
+arsenal config sandbox show
+
+# Set timeout for sandboxed command execution (seconds)
+arsenal config sandbox set-timeout 30
+
+# Set permission flags
+arsenal config sandbox set-permissions --allow-read /tmp,/home --allow-env PATH,HOME
+
+# Enable sandbox mode
+arsenal config sandbox enable
+
+# Disable sandbox mode (default)
+arsenal config sandbox disable
 ```
 
 ### User Commands Directory
@@ -224,7 +315,7 @@ Convert time between timezones:
 
 ```bash
 # Convert timestamp between timezones
-arsenal common time convert --input "2024-01-01 12:00" --from UTC --to America/New_York
+arsenal common time convert --time "2024-01-01 12:00" --from-tz UTC --to-tz America/New_York
 ```
 
 ## State Management
@@ -233,26 +324,37 @@ Store and retrieve data across command invocations with different scopes:
 
 ```bash
 # Set a value (default scope: session)
-arsenal state-set mykey "myvalue"
+arsenal state set mykey "myvalue"
 
 # Get a value
-arsenal state-get mykey
+arsenal state get mykey
 
 # List all keys
-arsenal state-list
+arsenal state list
 
 # Clear state
-arsenal state-clear
+arsenal state clear
 
 # Use specific scope
-arsenal state-set project-key "value" --scope project
-arsenal state-get project-key --scope persistent
+arsenal state set project-key "value" --scope project
+arsenal state get project-key --scope persistent
+
+# Persist value across sessions
+arsenal state set mykey "value" --persist
 ```
 
 **Scopes:**
-- `session` - Available during current terminal session
+- `session` - Available during current terminal session (default)
 - `persistent` - Persists across sessions (stored in `~/.agent-arsenal/state.json`)
 - `project` - Project-specific state (stored in `.arsenal-state` in current directory)
+
+### State Command Options
+
+| Option | Description |
+|--------|-------------|
+| `--scope session\|persistent\|project` | Choose storage scope (default: session) |
+| `--persist` | Persist value to disk (equivalent to `--scope persistent`) |
+| `--all` | Clear all scopes (with `state clear`) |
 
 ## Watch Mode
 
@@ -262,11 +364,55 @@ Watch command files for changes and automatically reload:
 # Watch with default settings (500ms debounce)
 arsenal watch
 
-# Custom debounce time
+# Custom debounce time in milliseconds
 arsenal watch --debounce 1000
+arsenal watch -d 2000
 ```
 
 This is useful during development when adding or modifying command files.
+
+### Watch Options
+
+| Option | Description |
+|--------|-------------|
+| `--debounce MS, -d MS` | Debounce delay in milliseconds (default: 500) |
+
+## Sandbox Security
+
+Agent Arsenal supports a sandboxed execution environment for running Python/hybrid commands securely. The sandbox is built on Deno and provides fine-grained permission control.
+
+```bash
+# Show current sandbox configuration
+arsenal config sandbox show
+
+# Set execution timeout (seconds)
+arsenal config sandbox set-timeout 30
+
+# Configure permissions (individual flags)
+arsenal config sandbox set-permissions --allow-read --allow-env
+
+# Enable sandbox mode
+arsenal config sandbox enable
+
+# Disable sandbox mode
+arsenal config sandbox disable
+```
+
+### Sandbox Permissions
+
+| Permission | Description |
+|------------|-------------|
+| `allow_read` | Allow reading files |
+| `allow_write` | Allow writing files |
+| `allow_net` | Allow network requests |
+| `allow_env` | Allow access to environment variables |
+| `allow_run` | Allow running subprocesses |
+
+### Notes
+
+- **Default: Disabled** - The sandbox is disabled by default for maximum compatibility
+- **Auto-disable** - Sandbox automatically disables if Deno is not installed
+- **Timeout** - Maximum execution time for sandboxed commands (default: 60 seconds)
 
 ## Development
 
@@ -326,4 +472,4 @@ Commands are stored as markdown files in `src/agent_arsenal/commands/`.
 
 ## License
 
-MIT
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for full text.
