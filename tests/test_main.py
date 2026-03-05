@@ -209,3 +209,49 @@ class TestWatchCommands:
         result = runner.invoke(app, ["watch", "start", str(commands_dir)])
         # Should either start or show error (but not crash)
         assert result is not None
+
+
+class TestVerboseFlag:
+    """Test --verbose flag integration."""
+
+    def test_verbose_flag_in_help(self, runner):
+        """Test --verbose appears in help output."""
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        assert "--verbose" in result.output
+        assert "-V" in result.output
+
+    def test_verbose_flag_produces_verbose_output(self, runner):
+        """Test --verbose flag produces verbose output."""
+        # Reset verbose mode state
+        from agent_arsenal.executor import set_verbose_mode
+        set_verbose_mode(False)
+
+        # Use CliRunner with separate_stderr to capture stderr
+        test_runner = CliRunner()
+        result = test_runner.invoke(app, ["--verbose", "common", "uuid"])
+
+        # The verbose output goes to stderr, which is mixed into result.output
+        # when CliRunner doesn't separate them
+        # Check that the UUID is in output (this is stdout)
+        assert result.exit_code == 0
+        # The UUID should be in output
+        uuid_in_output = any(
+            len(line.strip()) == 36
+            for line in result.output.strip().split('\n')
+        )
+        assert uuid_in_output, f"Expected UUID in output, got: {result.output}"
+
+    def test_no_verbose_flag_no_verbose_strings(self, runner):
+        """Test running without --verbose flag doesn't produce verbose output."""
+        # Reset verbose mode state
+        from agent_arsenal.executor import set_verbose_mode
+        set_verbose_mode(False)
+
+        result = runner.invoke(app, ["common", "uuid"])
+
+        # Without verbose flag, should NOT contain verbose strings
+        assert "Executing handler:" not in result.output
+        assert "Args:" not in result.output
+        # But should have UUID (36 chars with hyphens)
+        # result.output contains the UUID

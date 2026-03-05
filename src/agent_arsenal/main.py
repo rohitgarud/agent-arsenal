@@ -602,6 +602,12 @@ def main(
         "--debug",
         help="Enable debug mode",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-V",  # Uppercase to avoid conflict with -v for --version
+        help="Enable verbose output (handler, args, result)",
+    ),
 ):
     """
     Agent Arsenal - A global CLI tool for coding agents to use in development.
@@ -611,6 +617,9 @@ def main(
     """
     if debug:
         console.print("[yellow]Debug mode enabled[/yellow]")
+    if verbose:
+        from agent_arsenal.executor import set_verbose_mode
+        set_verbose_mode(True)
     pass
 
 

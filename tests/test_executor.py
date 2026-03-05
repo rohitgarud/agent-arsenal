@@ -820,3 +820,42 @@ sandbox: false
         result = executor.execute_node(cmd, {})
 
         assert result.success
+
+
+class TestVerboseMode:
+    """Tests for verbose mode functionality."""
+
+    def test_set_verbose_mode_true(self):
+        """Test that set_verbose_mode(True) enables verbose mode."""
+        from agent_arsenal.executor import set_verbose_mode
+
+        # Ensure verbose mode is off first
+        set_verbose_mode(False)
+
+        # Enable verbose mode
+        set_verbose_mode(True)
+
+        # Check the flag is set (we need to import the module to get updated value)
+        from agent_arsenal import executor
+        assert executor._verbose_mode is True
+
+    def test_set_verbose_mode_false(self):
+        """Test that set_verbose_mode(False) disables verbose mode."""
+        from agent_arsenal.executor import set_verbose_mode
+
+        # Ensure verbose mode is on first
+        set_verbose_mode(True)
+
+        # Disable verbose mode
+        set_verbose_mode(False)
+
+        # Check the flag is cleared
+        from agent_arsenal import executor
+        assert executor._verbose_mode is False
+
+    def test_verbose_mode_default_false(self):
+        """Test that verbose mode defaults to False."""
+        from agent_arsenal import executor
+
+        # Should start as False
+        assert executor._verbose_mode is False

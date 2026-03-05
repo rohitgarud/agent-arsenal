@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from rich.console import Console
 
 if TYPE_CHECKING:
     from agent_arsenal.registry import Command
@@ -20,6 +23,21 @@ from agent_arsenal.sandbox import (
     DenoSandboxExecutor,
     SandboxConfig,
 )
+
+# Module-level verbose mode flag
+_verbose_mode: bool = False
+
+
+def set_verbose_mode(value: bool) -> None:
+    """Set the verbose mode flag for command execution."""
+    global _verbose_mode
+    _verbose_mode = value
+
+
+# Console for verbose output
+console = Console()
+# Separate console for stderr output
+console_stderr = Console(file=sys.stderr)
 
 
 @dataclass
@@ -71,6 +89,13 @@ class CommandExecutor:
         handler_info = get_handler_info(fm)
         exec_type = handler_info.get("type", "prompt")
 
+        # Verbose output before execution
+        if _verbose_mode:
+            console_stderr.print(
+                f"[dim]Executing handler: {handler_info.get('path', 'inline')}[/dim]",
+            )
+            console_stderr.print(f"[dim]Args: {args}[/dim]")
+
         # Extract sandbox config from frontmatter
         sandbox_enabled = fm.get("sandbox", True)  # Default: true (sandbox enabled)
 
@@ -84,18 +109,24 @@ class CommandExecutor:
 
             if not sandbox_config.enabled:
                 # Sandbox disabled globally - execute directly
-                return self._execute_direct(command_obj, args, exec_type, handler_info)
+                result = self._execute_direct(command_obj, args, exec_type, handler_info)
+                if _verbose_mode:
+                    console_stderr.print(f"[dim]Result: {result.output}[/dim]")
+                return result
 
             permissions = get_sandbox_permissions_for_command(fm, sandbox_config)
 
             # Check Deno availability
             sandbox_exec = DenoSandboxExecutor(sandbox_config)
             if not sandbox_exec._check_deno_available():
-                return CommandResult(
+                result = CommandResult(
                     success=False,
                     output="",
                     error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh",
                 )
+                if _verbose_mode:
+                    console_stderr.print(f"[dim]Result: {result.output}[/dim]")
+                return result
 
             # Execute in sandbox and convert result to executor's CommandResult
             sandbox_result = sandbox_exec.execute(
@@ -104,6 +135,8 @@ class CommandExecutor:
                 permissions=permissions,
                 timeout=sandbox_config.timeout_seconds,
             )
+            if _verbose_mode:
+                console_stderr.print(f"[dim]Result: {sandbox_result.output}[/dim]")
             return CommandResult(
                 success=sandbox_result.success,
                 output=sandbox_result.output,
@@ -112,7 +145,10 @@ class CommandExecutor:
             )
         else:
             # Execute directly (no sandbox)
-            return self._execute_direct(command_obj, args, exec_type, handler_info)
+            result = self._execute_direct(command_obj, args, exec_type, handler_info)
+            if _verbose_mode:
+                console_stderr.print(f"[dim]Result: {result.output}[/dim]")
+            return result
 
     def _execute_direct(
         self,
