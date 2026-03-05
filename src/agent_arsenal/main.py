@@ -15,6 +15,7 @@ from agent_arsenal.config import (
     save_sandbox_config,
 )
 from agent_arsenal.executor import CommandExecutor
+from agent_arsenal.output import OutputConfig, OutputManager
 from agent_arsenal.registry import Command, CommandGroup, CommandRegistry
 
 # Lazy initialization for registry
@@ -50,7 +51,24 @@ app = typer.Typer(
     add_completion=False,
 )
 
+# Output manager for centralized output control (quiet mode, colors, etc.)
+_output_manager: OutputManager | None = None
+
+# Console for internal CLI messages (config, state, version, etc.)
 console = Console()
+
+
+def get_output_manager() -> OutputManager:
+    """Get or create the global OutputManager instance.
+
+    Returns:
+        The global OutputManager instance
+    """
+    global _output_manager
+    if _output_manager is None:
+        config = OutputConfig()
+        _output_manager = OutputManager(config)
+    return _output_manager
 
 # Config command group
 config_app = typer.Typer(
@@ -387,13 +405,13 @@ def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
                     args[key] = value
 
             # Execute the command
-            executor = CommandExecutor()
+            executor = CommandExecutor(get_output_manager())
             result = executor.execute(command, args)
 
             if result.success:
-                console.print(result.output)
+                get_output_manager().print_result(result.output)
             else:
-                console.print(f"[bold red]Error:[/bold red] {result.error}")
+                get_output_manager().print_error(result.error or "Unknown error")
 
         # Set function metadata
         command_func.__name__ = command.name
@@ -410,12 +428,12 @@ def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
         # No arguments case - simple wrapper
         def no_args_func() -> None:
             """Execute the command with no arguments."""
-            executor = CommandExecutor()
+            executor = CommandExecutor(get_output_manager())
             result = executor.execute(cmd, {})
             if result.success:
-                console.print(result.output)
+                get_output_manager().print_result(result.output)
             else:
-                console.print(f"[bold red]Error:[/bold red] {result.error}")
+                get_output_manager().print_error(result.error or "Unknown error")
 
         no_args_func.__name__ = cmd.name
         no_args_func.__doc__ = description
@@ -483,13 +501,13 @@ def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
                     args_dict[arg_name] = normalized_kwargs[arg_name]
 
             # Execute the command
-            executor = CommandExecutor()
+            executor = CommandExecutor(get_output_manager())
             result = executor.execute(cmd, args_dict)
 
             if result.success:
-                console.print(result.output)
+                get_output_manager().print_result(result.output)
             else:
-                console.print(f"[bold red]Error:[/bold red] {result.error}")
+                get_output_manager().print_error(result.error or "Unknown error")
 
         wrapper.__name__ = cmd.name
         wrapper.__doc__ = description
@@ -608,6 +626,17 @@ def main(
         "-V",  # Uppercase to avoid conflict with -v for --version
         help="Enable verbose output (handler, args, result)",
     ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="Suppress non-essential output (colors, verbose info)",
+    ),
+    no_color: bool = typer.Option(
+        False,
+        "--no-color",
+        help="Disable ANSI color codes in output",
+    ),
 ):
     """
     Agent Arsenal - A global CLI tool for coding agents to use in development.
@@ -615,6 +644,12 @@ def main(
     Commands are organized hierarchically based on the commands/ folder.
     Use --help with any group or command to see more details.
     """
+    global _output_manager
+
+    # Initialize output manager with quiet/no_color settings
+    config = OutputConfig(quiet=quiet, verbose=verbose, no_color=no_color)
+    _output_manager = OutputManager(config)
+
     if debug:
         console.print("[yellow]Debug mode enabled[/yellow]")
     if verbose:

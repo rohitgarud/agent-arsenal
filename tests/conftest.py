@@ -5,9 +5,16 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 from agent_arsenal.registry import CommandRegistry
 from agent_arsenal.sandbox import SandboxConfig, SandboxPermissions
+
+
+@pytest.fixture
+def cli_runner() -> CliRunner:
+    """Create a CliRunner for testing the CLI."""
+    return CliRunner()
 
 
 @pytest.fixture(autouse=True)

@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 
+from agent_arsenal.output import OutputManager
+
 if TYPE_CHECKING:
     from agent_arsenal.registry import Command
 
@@ -57,9 +59,31 @@ class CommandResult:
 class CommandExecutor:
     """Dispatcher for executing commands based on execution type."""
 
-    def __init__(self):
-        """Initialize the executor."""
-        pass
+    def __init__(
+        self,
+        output_manager: OutputManager | None = None,
+    ) -> None:
+        """Initialize the executor.
+
+        Args:
+            output_manager: Optional OutputManager for output.
+                          If None, uses module-level verbose mode.
+        """
+        self._output_manager = output_manager
+
+    def _print_verbose(self, content: str) -> None:
+        """Print verbose debug information.
+
+        Uses OutputManager if available, otherwise falls back to legacy console.
+
+        Args:
+            content: The verbose content to print.
+        """
+        if self._output_manager is not None:
+            self._output_manager.print_verbose(content)
+        elif _verbose_mode:
+            # Legacy fallback
+            console_stderr.print(f"[dim]{content}[/dim]")
 
     def execute_prompt(self, command_path: Path, args: dict[str, Any]) -> CommandResult:
         """Execute prompt-type command (return markdown instructions)."""
@@ -90,11 +114,8 @@ class CommandExecutor:
         exec_type = handler_info.get("type", "prompt")
 
         # Verbose output before execution
-        if _verbose_mode:
-            console_stderr.print(
-                f"[dim]Executing handler: {handler_info.get('path', 'inline')}[/dim]",
-            )
-            console_stderr.print(f"[dim]Args: {args}[/dim]")
+        self._print_verbose(f"Executing handler: {handler_info.get('path', 'inline')}")
+        self._print_verbose(f"Args: {args}")
 
         # Extract sandbox config from frontmatter
         sandbox_enabled = fm.get("sandbox", True)  # Default: true (sandbox enabled)
@@ -110,8 +131,7 @@ class CommandExecutor:
             if not sandbox_config.enabled:
                 # Sandbox disabled globally - execute directly
                 result = self._execute_direct(command_obj, args, exec_type, handler_info)
-                if _verbose_mode:
-                    console_stderr.print(f"[dim]Result: {result.output}[/dim]")
+                self._print_verbose(f"Result: {result.output}")
                 return result
 
             permissions = get_sandbox_permissions_for_command(fm, sandbox_config)
@@ -124,8 +144,7 @@ class CommandExecutor:
                     output="",
                     error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh",
                 )
-                if _verbose_mode:
-                    console_stderr.print(f"[dim]Result: {result.output}[/dim]")
+                self._print_verbose(f"Result: {result.output}")
                 return result
 
             # Execute in sandbox and convert result to executor's CommandResult
@@ -135,8 +154,7 @@ class CommandExecutor:
                 permissions=permissions,
                 timeout=sandbox_config.timeout_seconds,
             )
-            if _verbose_mode:
-                console_stderr.print(f"[dim]Result: {sandbox_result.output}[/dim]")
+            self._print_verbose(f"Result: {sandbox_result.output}")
             return CommandResult(
                 success=sandbox_result.success,
                 output=sandbox_result.output,
@@ -146,8 +164,7 @@ class CommandExecutor:
         else:
             # Execute directly (no sandbox)
             result = self._execute_direct(command_obj, args, exec_type, handler_info)
-            if _verbose_mode:
-                console_stderr.print(f"[dim]Result: {result.output}[/dim]")
+            self._print_verbose(f"Result: {result.output}")
             return result
 
     def _execute_direct(
