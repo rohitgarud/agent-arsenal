@@ -5,9 +5,11 @@ A global CLI tool for coding agents to use in development. Provides a hierarchic
 ## Quick Start
 
 ```bash
-# Install globally
-cd agent-arsenal
-uv tool install . --editable
+# Install globally (recommended - from PyPI)
+uv tool install agent-arsenal
+
+# Or using pip
+pip install agent-arsenal
 
 # Show help
 arsenal --help
@@ -45,9 +47,21 @@ arsenal watch
 
 ## Installation
 
-### Install Globally (Editable Mode)
+### Recommended: Install from PyPI
 
-For development, install the tool globally in editable mode:
+The easiest way to install agent-arsenal is directly from PyPI:
+
+```bash
+# Using uv (recommended)
+uv tool install agent-arsenal
+
+# Or using pip (global scope)
+pip install agent-arsenal
+```
+
+### Install for Development (Editable Mode)
+
+If you want to contribute or modify the source code, install in editable mode:
 
 ```bash
 cd agent-arsenal
@@ -58,9 +72,9 @@ This allows you to:
 - Run `arsenal` from anywhere on your system
 - Make changes to the code and see them immediately without reinstalling
 
-### Install Globally (Standard)
+### Install from Source (Standard)
 
-For production use:
+For production use from source:
 
 ```bash
 cd agent-arsenal
