@@ -70,6 +70,7 @@ def get_output_manager() -> OutputManager:
         _output_manager = OutputManager(config)
     return _output_manager
 
+
 # Config command group
 config_app = typer.Typer(
     name="config",
@@ -273,11 +274,25 @@ def state_set(
         "--persist",
         help="Persist to disk immediately (for persistent scope)",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        "-n",
+        help="Preview the command without executing (no changes will be made)",
+    ),
 ):
     """Set a value in state."""
     from agent_arsenal.state import state
 
     scope_enum = _parse_scope(scope)
+
+    # DRY-RUN MODE: Output preview without executing
+    if dry_run:
+        console.print(
+            f"[yellow][DRY-RUN] Would set {key} = {value} in {scope} scope[/yellow]"
+        )
+        return  # Exit early, no state modification
+
     state.set(key, value, scope_enum)
 
     if persist and scope == "persistent":
@@ -317,9 +332,27 @@ def state_clear(
         help="Scope: session, persistent, project (default: all)",
     ),
     all_scopes: bool = typer.Option(False, "--all", "-a", help="Clear all scopes"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        "-n",
+        help="Preview the command without executing (no changes will be made)",
+    ),
 ):
     """Clear state for a scope."""
     from agent_arsenal.state import state
+
+    # Determine scopes to clear
+    if all_scopes:
+        scopes_to_clear = ["session", "persistent", "project"]
+    else:
+        scopes_to_clear = [scope]
+
+    # DRY-RUN MODE: Output preview without executing
+    if dry_run:
+        for s in scopes_to_clear:
+            console.print(f"[yellow][DRY-RUN] Would clear {s} scope[/yellow]")
+        return  # Exit early, no state modification
 
     if all_scopes:
         state.clear()
@@ -654,6 +687,7 @@ def main(
         console.print("[yellow]Debug mode enabled[/yellow]")
     if verbose:
         from agent_arsenal.executor import set_verbose_mode
+
         set_verbose_mode(True)
     pass
 
