@@ -442,7 +442,7 @@ def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
             result = executor.execute(command, args)
 
             if result.success:
-                get_output_manager().print_result(result.output)
+                get_output_manager().print_result(result)
             else:
                 get_output_manager().print_error(result.error or "Unknown error")
 
@@ -464,7 +464,7 @@ def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
             executor = CommandExecutor(get_output_manager())
             result = executor.execute(cmd, {})
             if result.success:
-                get_output_manager().print_result(result.output)
+                get_output_manager().print_result(result)
             else:
                 get_output_manager().print_error(result.error or "Unknown error")
 
@@ -538,7 +538,7 @@ def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
             result = executor.execute(cmd, args_dict)
 
             if result.success:
-                get_output_manager().print_result(result.output)
+                get_output_manager().print_result(result)
             else:
                 get_output_manager().print_error(result.error or "Unknown error")
 
@@ -670,6 +670,12 @@ def main(
         "--no-color",
         help="Disable ANSI color codes in output",
     ),
+    json: bool = typer.Option(
+        False,
+        "--json",
+        help="Output in JSON format",
+        is_flag=True,
+    ),
 ):
     """
     Agent Arsenal - A global CLI tool for coding agents to use in development.
@@ -679,8 +685,8 @@ def main(
     """
     global _output_manager
 
-    # Initialize output manager with quiet/no_color settings
-    config = OutputConfig(quiet=quiet, verbose=verbose, no_color=no_color)
+    # Initialize output manager with quiet/no_color/settings
+    config = OutputConfig(quiet=quiet, verbose=verbose, no_color=no_color, json=json)
     _output_manager = OutputManager(config)
 
     if debug:

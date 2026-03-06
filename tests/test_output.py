@@ -1,5 +1,6 @@
 """Tests for output.py - OutputManager and OutputConfig."""
 
+import json
 import sys
 from unittest.mock import patch
 
@@ -58,19 +59,25 @@ class TestOutputManager:
 
     def test_print_result_outputs_content_to_console(self):
         """Test print_result outputs content via Rich Console."""
+        from agent_arsenal.executor import CommandResult
+
         config = OutputConfig()
         manager = OutputManager(config)
+        result = CommandResult(success=True, output="hello world")
         with patch.object(manager._console_stdout, "print") as mock_print:
-            manager.print_result("hello world")
+            manager.print_result(result)
             mock_print.assert_called_once_with("hello world")
 
     def test_print_result_quiet_mode_uses_plain_print(self):
         """Test print_result in quiet mode uses built-in print."""
+        from agent_arsenal.executor import CommandResult
+
         config = OutputConfig(quiet=True)
         manager = OutputManager(config)
+        result = CommandResult(success=True, output="quiet result")
         # In quiet mode, should use built-in print which we can capture
         with patch("builtins.print") as mock_print:
-            manager.print_result("quiet result")
+            manager.print_result(result)
             mock_print.assert_called_once_with("quiet result", file=sys.stdout)
 
     def test_print_error_outputs_to_console(self):
@@ -144,6 +151,89 @@ class TestOutputManager:
         with patch.object(manager._console_stdout, "print") as mock_print:
             manager.print_info("info message")
             mock_print.assert_called_once_with("[info]info message[/info]")
+
+
+class TestJsonOutput:
+    """Tests for JSON output functionality in OutputManager."""
+
+    def test_print_result_json_success(self):
+        """Test print_result outputs valid JSON for successful command."""
+        from agent_arsenal.executor import CommandResult
+
+        config = OutputConfig(json=True)
+        manager = OutputManager(config)
+        result = CommandResult(success=True, output="test output")
+
+        with patch("typer.echo") as mock_echo:
+            manager.print_result(result)
+            mock_echo.assert_called_once()
+            output = mock_echo.call_args[0][0]
+            parsed = json.loads(output)
+            assert parsed["success"] is True
+            assert parsed["output"] == "test output"
+            assert parsed["error"] is None
+
+    def test_print_result_json_error(self):
+        """Test print_result outputs valid JSON for failed command."""
+        from agent_arsenal.executor import CommandResult
+
+        config = OutputConfig(json=True)
+        manager = OutputManager(config)
+        result = CommandResult(success=False, output="", error="Something failed")
+
+        with patch("typer.echo") as mock_echo:
+            manager.print_result(result)
+            mock_echo.assert_called_once()
+            output = mock_echo.call_args[0][0]
+            parsed = json.loads(output)
+            assert parsed["success"] is False
+            assert parsed["output"] == ""
+            assert parsed["error"] == "Something failed"
+
+    def test_print_result_json_with_metadata(self):
+        """Test print_result includes metadata in JSON output when present."""
+        from agent_arsenal.executor import CommandResult
+
+        config = OutputConfig(json=True)
+        manager = OutputManager(config)
+        result = CommandResult(
+            success=True,
+            output="result data",
+            metadata={"command": "uuid", "duration_ms": 42}
+        )
+
+        with patch("typer.echo") as mock_echo:
+            manager.print_result(result)
+            mock_echo.assert_called_once()
+            output = mock_echo.call_args[0][0]
+            parsed = json.loads(output)
+            assert "metadata" in parsed
+            assert parsed["metadata"]["command"] == "uuid"
+            assert parsed["metadata"]["duration_ms"] == 42
+
+    def test_print_error_json(self):
+        """Test print_error outputs error in JSON format when json=True."""
+        config = OutputConfig(json=True)
+        manager = OutputManager(config)
+
+        with patch("typer.echo") as mock_echo:
+            manager.print_error("Something went wrong")
+            mock_echo.assert_called_once()
+            output = mock_echo.call_args[0][0]
+            parsed = json.loads(output)
+            assert parsed["success"] is False
+            assert parsed["output"] == ""
+            assert parsed["error"] == "Something went wrong"
+
+    def test_json_flag_defaults_to_false(self):
+        """Test OutputConfig json field defaults to False."""
+        config = OutputConfig()
+        assert config.json is False
+
+    def test_json_flag_can_be_set_true(self):
+        """Test OutputConfig json field can be set to True."""
+        config = OutputConfig(json=True)
+        assert config.json is True
 
 
 class TestGetOutputManager:

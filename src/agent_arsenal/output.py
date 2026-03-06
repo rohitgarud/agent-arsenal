@@ -4,11 +4,17 @@ This module provides the OutputManager class which controls all CLI output behav
 including quiet mode, verbose mode, and color control.
 """
 
+import json
 from dataclasses import dataclass
 from sys import stderr, stdout
+from typing import TYPE_CHECKING
 
+import typer
 from rich.console import Console
 from rich.theme import Theme
+
+if TYPE_CHECKING:
+    from agent_arsenal.executor import CommandResult
 
 
 @dataclass
@@ -19,11 +25,15 @@ class OutputConfig:
         quiet: If True, suppress all non-essential output (colors, verbose info).
         verbose: If True, show additional debug information.
         no_color: If True, disable color output regardless of other settings.
+        json: If True, output machine-readable JSON instead of human-friendly text.
+        debug: If True, enable debug mode for additional diagnostics.
     """
 
     quiet: bool = False
     verbose: bool = False
     no_color: bool = False
+    json: bool = False
+    debug: bool = False
 
 
 class OutputManager:
@@ -118,31 +128,61 @@ class OutputManager:
         """
         return self._config.verbose
 
-    def print_result(self, content: str) -> None:
-        """Print command result to stdout.
-
-        This is the primary output method for command results.
-        In quiet mode, prints plain text without colors.
+    def _print_json(self, result: "CommandResult") -> None:
+        """Print command result in JSON format.
 
         Args:
-            content: The result content to print.
+            result: The CommandResult to print as JSON.
+        """
+        output_data = {
+            "success": result.success,
+            "output": result.output,
+            "error": result.error,
+        }
+        if result.metadata:
+            output_data["metadata"] = result.metadata
+        typer.echo(json.dumps(output_data))
+
+    def _print_text(self, result: "CommandResult") -> None:
+        """Print command result in human-friendly text format.
+
+        Args:
+            result: The CommandResult to print as text.
         """
         if self._config.quiet:
             # Plain text output in quiet mode - use built-in print
-            print(content, file=stdout)
+            print(result.output, file=stdout)
         else:
             # Rich-formatted output in normal mode
-            self._console_stdout.print(content)
+            self._console_stdout.print(result.output)
+
+    def print_result(self, result: "CommandResult") -> None:
+        """Print command result to stdout.
+
+        This is the primary output method for command results.
+        Routes to JSON or text output based on configuration.
+
+        Args:
+            result: The CommandResult containing the command execution result.
+        """
+        if self._config.json:
+            self._print_json(result)
+        else:
+            self._print_text(result)
 
     def print_error(self, content: str) -> None:
         """Print error to stderr.
 
-        Errors are always printed, but styled differently in quiet mode.
+        Errors are always printed, but styled differently in quiet mode or JSON mode.
 
         Args:
             content: The error content to print.
         """
-        if self._config.quiet:
+        if self._config.json:
+            # JSON output for error case
+            error_data = {"success": False, "output": "", "error": content}
+            typer.echo(json.dumps(error_data))
+        elif self._config.quiet:
             # Plain error in quiet mode - use built-in print
             print(content, file=stderr)
         else:
