@@ -100,6 +100,9 @@ class CommandRegistry:
         Returns:
             The root CommandGroup with all commands
         """
+        # Clear cache to ensure fresh scan (needed when scan_all is called multiple times)
+        self._commands_cache.clear()
+
         # Scan built-in commands directory first (takes precedence)
         root_group = self.scan_directory()
 
@@ -161,14 +164,104 @@ class CommandRegistry:
         # Re-scan to populate the cache
         self.scan_all()
 
-    def list_commands(self, group: str | None = None) -> list[Command]:
-        """List all commands, optionally filtered by group.
+    def list_commands(
+        self, group: str | None = None, max_depth: int | None = None
+    ) -> CommandGroup:
+        """List all commands as a hierarchical tree.
 
         Args:
-            group: Optional group name to filter by
+            group: Optional group name to filter by (becomes new root)
+            max_depth: Maximum depth to traverse (None = unlimited, 0 = show all)
 
         Returns:
-            List of Command objects
+            CommandGroup root with nested commands and subgroups
         """
-        # TODO: Implement command listing
-        return []
+        # Scan all commands to get the full tree
+        root_group = self.scan_all()
+
+        # Filter by group if specified
+        if group:
+            # Find the requested group in the tree
+            found_group = self._find_group(root_group, group)
+            if found_group is None:
+                # Group not found - return empty group with the requested name
+                return CommandGroup(
+                    name=group,
+                    path=root_group.path,
+                    description=f"Group '{group}' not found",
+                )
+            # Apply depth limiting to the found group
+            if max_depth is not None and max_depth > 0:
+                return self._filter_by_depth(found_group, max_depth)
+            return found_group
+
+        # Apply depth limiting to root if specified
+        if max_depth is not None and max_depth > 0:
+            return self._filter_by_depth(root_group, max_depth)
+
+        return root_group
+
+    def _find_group(self, root: CommandGroup, group_name: str) -> CommandGroup | None:
+        """Find a group by name in the command tree.
+
+        Args:
+            root: Root group to search in
+            group_name: Name of the group to find
+
+        Returns:
+            CommandGroup if found, None otherwise
+        """
+        # Check this group
+        if root.name == group_name:
+            return root
+
+        # Check subgroups recursively
+        for subgroup in root.subgroups:
+            found = self._find_group(subgroup, group_name)
+            if found:
+                return found
+
+        # Also check root's direct commands for 'external' group
+        if group_name == "external":
+            return CommandGroup(
+                name="external",
+                path=root.path,
+                description="External commands",
+                commands=[cmd for cmd in root.commands if cmd.parent == "external"],
+            )
+
+        return None
+
+    def _filter_by_depth(self, group: CommandGroup, max_depth: int) -> CommandGroup:
+        """Recursively limit the depth of a command group tree.
+
+        Args:
+            group: CommandGroup to filter
+            max_depth: Maximum depth (1 = root only, 2 = root + direct children, etc.)
+
+        Returns:
+            New CommandGroup with depth limiting applied
+        """
+        if max_depth <= 1:
+            # Return shallow copy with empty subgroups/commands
+            return CommandGroup(
+                name=group.name,
+                path=group.path,
+                description=group.description,
+                commands=group.commands,
+                subgroups=[],  # No subgroups at depth 1
+            )
+
+        # Recursively filter subgroups
+        filtered_subgroups = [
+            self._filter_by_depth(subgroup, max_depth - 1)
+            for subgroup in group.subgroups
+        ]
+
+        return CommandGroup(
+            name=group.name,
+            path=group.path,
+            description=group.description,
+            commands=group.commands,
+            subgroups=filtered_subgroups,
+        )

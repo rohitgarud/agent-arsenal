@@ -324,3 +324,85 @@ class TestJsonFlag:
         assert result.exit_code == 0
         parsed = json.loads(result.output)
         assert parsed["success"] is True
+
+
+class TestListCommand:
+    """Test the 'list' subcommand for command discovery."""
+
+    def test_list_commands_default(self, runner):
+        """Test 'arsenal list' shows all commands."""
+        result = runner.invoke(app, ["list"])
+        assert result.exit_code == 0
+        # Should show common group
+        assert "common" in result.output
+        # Should show some commands
+        assert "uuid" in result.output or "hash" in result.output
+
+    def test_list_commands_json(self, runner):
+        """Test 'arsenal --json list' returns valid JSON."""
+        result = runner.invoke(app, ["--json", "list"])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["success"] is True
+        assert "output" in parsed
+
+    def test_list_commands_with_level(self, runner):
+        """Test 'arsenal list --level 1' limits depth."""
+        result = runner.invoke(app, ["list", "--level", "1"])
+        assert result.exit_code == 0
+        # Level 1 shows root only - no subgroups (since max_depth=1 filters out subgroups)
+        # Should show "root" as the group name
+        assert "root" in result.output.lower() or "Commands:" in result.output
+
+    def test_list_commands_group_filter(self, runner):
+        """Test 'arsenal list common' filters to group."""
+        result = runner.invoke(app, ["list", "common"])
+        assert result.exit_code == 0
+        # Should show common as the root
+        assert "common" in result.output
+        # Should show commands within common
+        assert "uuid" in result.output
+
+    def test_list_commands_help(self, runner):
+        """Test 'arsenal list --help' displays options."""
+        result = runner.invoke(app, ["list", "--help"])
+        assert result.exit_code == 0
+        assert "Group to list" in result.output
+        assert "--level" in result.output or "-l" in result.output
+
+    def test_list_commands_json_structure(self, runner):
+        """Validate JSON output has success, output, metadata fields."""
+        result = runner.invoke(app, ["--json", "list"])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        # Check top-level structure
+        assert "success" in parsed
+        assert "output" in parsed
+        assert "metadata" in parsed
+        # Check metadata fields
+        assert "total_commands" in parsed["metadata"]
+        assert "total_groups" in parsed["metadata"]
+        assert "depth" in parsed["metadata"]
+
+    def test_list_commands_nonexistent_group(self, runner):
+        """Test handling of invalid group name."""
+        result = runner.invoke(app, ["list", "nonexistent"])
+        assert result.exit_code == 1
+        assert "not found" in result.output.lower()
+
+    def test_list_commands_json_nonexistent_group(self, runner):
+        """Test JSON output for nonexistent group."""
+        result = runner.invoke(app, ["--json", "list", "nonexistent"])
+        assert result.exit_code == 1
+        parsed = json.loads(result.output)
+        assert parsed["success"] is False
+        assert "error" in parsed
+
+    def test_list_commands_level_2(self, runner):
+        """Test depth limiting with level 2."""
+        result = runner.invoke(app, ["list", "--level", "2"])
+        assert result.exit_code == 0
+        # Should show root and one level of subgroups
+        assert "common" in result.output
+        # Should show direct commands of common
+        assert "uuid" in result.output or "hash" in result.output

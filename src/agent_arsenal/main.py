@@ -87,6 +87,144 @@ state_app = typer.Typer(
 )
 app.add_typer(state_app, name="state")
 
+
+@app.command("list")
+def list_commands_cli(
+    group: str | None = typer.Argument(
+        None,
+        help="Group to list (e.g., 'common', 'config')",
+    ),
+    level: int | None = typer.Option(
+        None,
+        "--level",
+        "-l",
+        help="Depth limit (1, 2, 3, ... or 0 for max/unlimited)",
+    ),
+):
+    """List all available commands.
+
+    Displays commands in a tree structure with optional depth control.
+    Use --json for machine-readable output.
+    """
+    from agent_arsenal.parser import parse_markdown_command
+
+    # Get output manager for JSON flag
+    output_mgr = get_output_manager()
+    use_json = output_mgr.config.json
+
+    # Get commands from registry
+    registry = get_registry()
+    command_tree = registry.list_commands(group=group, max_depth=level)
+
+    # Check if group not found
+    if "not found" in command_tree.description.lower():
+        error_msg = f"Group '{group}' not found"
+        if use_json:
+            import json
+
+            print(json.dumps({"success": False, "error": error_msg, "output": None}))
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1)
+
+    # Collect statistics
+    total_commands = 0
+    total_groups = 0
+    max_depth_found = 0
+
+    def count_items(g: CommandGroup, depth: int = 0) -> None:
+        nonlocal total_commands, total_groups, max_depth_found
+        max_depth_found = max(max_depth_found, depth)
+        total_groups += 1
+        total_commands += len(g.commands)
+        for sg in g.subgroups:
+            count_items(sg, depth + 1)
+
+    count_items(command_tree)
+
+    if use_json:
+        # Build JSON output
+        import json
+
+        def group_to_dict(g: CommandGroup) -> dict:
+            result: dict = {
+                "name": g.name,
+                "type": "group",
+                "description": g.description,
+                "commands": [],
+                "subgroups": [],
+            }
+            for cmd in g.commands:
+                # Try to get description from markdown
+                desc = ""
+                try:
+                    fm, _ = parse_markdown_command(cmd.path)
+                    desc = fm.get("description", "")
+                except Exception:
+                    pass
+                result["commands"].append(
+                    {"name": cmd.name, "type": "command", "description": desc}
+                )
+            for sg in g.subgroups:
+                result["subgroups"].append(group_to_dict(sg))
+            return result
+
+        output_data = {
+            "success": True,
+            "output": [group_to_dict(command_tree)],
+            "metadata": {
+                "total_commands": total_commands,
+                "total_groups": total_groups,
+                "depth": max_depth_found + 1,
+            },
+        }
+        print(json.dumps(output_data, indent=2))
+    else:
+        # Text output with tree structure
+        def print_tree(g: CommandGroup, prefix: str = "", is_last: bool = True) -> None:
+            """Recursively print command tree."""
+            # Get connector style
+            connector = "└── " if is_last else "├── "
+
+            # Print group name
+            if g.name != "root":
+                desc = f" — {g.description}" if g.description else ""
+                console.print(f"{prefix}{connector}[bold]{g.name}[/bold]{desc}")
+
+            # Extend prefix for children
+            child_prefix = prefix + ("    " if is_last else "│   ")
+
+            # Print commands in this group
+            for i, cmd in enumerate(g.commands):
+                is_last_cmd = i == len(g.commands) - 1 and len(g.subgroups) == 0
+                cmd_connector = "└── " if is_last_cmd else "├── "
+
+                # Get command description
+                cmd_desc = ""
+                try:
+                    fm, _ = parse_markdown_command(cmd.path)
+                    cmd_desc = fm.get("description", "")
+                except Exception:
+                    pass
+
+                if cmd_desc:
+                    console.print(f"{child_prefix}{cmd_connector}[cyan]{cmd.name}[/cyan]  {cmd_desc}")
+                else:
+                    console.print(f"{child_prefix}{cmd_connector}[cyan]{cmd.name}[/cyan]")
+
+            # Print subgroups
+            for i, sg in enumerate(g.subgroups):
+                is_last_sg = i == len(g.subgroups) - 1
+                print_tree(sg, child_prefix, is_last_sg)
+
+        # Print the tree
+        console.print(f"[bold]Commands:[/bold] {command_tree.name}")
+        print_tree(command_tree)
+
+        # Print summary
+        console.print(f"\n[dim]Total: {total_commands} commands, {total_groups} groups[/dim]")
+
+
 # External directories subcommand group under config
 external_dir_app = typer.Typer(
     name="external-dir",
