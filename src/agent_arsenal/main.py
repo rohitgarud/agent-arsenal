@@ -532,7 +532,115 @@ def _parse_scope(scope_str: str):
 _command_info: dict[str, Any] = {}
 
 
-def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
+def _create_subcommand_func(
+    cmd: Command,
+    args_def: list[dict[str, Any]],
+    subcommand_name: str,
+):
+    """Create a subcommand-specific execution function.
+
+    This helper generates a command function that injects the subcommand
+    name into the args dict before executing.
+
+    Args:
+        cmd: Command object
+        args_def: List of argument definitions from frontmatter
+        subcommand_name: Name of the subcommand
+
+    Returns:
+        A command function with subcommand injected into args
+    """
+    from agent_arsenal.parser import parse_markdown_command
+
+    frontmatter, _ = parse_markdown_command(cmd.path)
+    description = frontmatter.get("description", f"Execute {cmd.name} {subcommand_name}")
+
+    # Create a wrapper that injects subcommand into args
+    if not args_def:
+        # No arguments case
+        def subcommand_func() -> None:
+            """Execute the subcommand with no arguments."""
+            executor = CommandExecutor(get_output_manager())
+            result = executor.execute(cmd, {"subcommand": subcommand_name})
+            if result.success:
+                get_output_manager().print_result(result)
+            else:
+                get_output_manager().print_error(result.error or "Unknown error")
+
+        subcommand_func.__name__ = subcommand_name
+        subcommand_func.__doc__ = description
+        return subcommand_func
+    else:
+        import functools
+        from inspect import Parameter, signature
+
+        # Build the signature with proper annotations
+        params = []
+        for arg in args_def:
+            arg_name = arg.get("name", "")
+            arg_type = arg.get("type", "string")
+            arg_default = arg.get("default")
+
+            param_name = arg_name.replace("-", "_")
+
+            # Determine the default value and annotation
+            if arg_type == "boolean":
+                default = arg_default if arg_default is not None else False
+                annotation: type = bool
+            elif arg_type == "integer":
+                default = arg_default if arg_default is not None else 0
+                annotation = int
+            else:
+                default = arg_default if arg_default is not None else ""
+                annotation = str
+
+            param = Parameter(
+                param_name,
+                kind=Parameter.KEYWORD_ONLY,
+                default=default,
+                annotation=annotation,
+            )
+            params.append(param)
+
+        sig = signature(lambda **kwargs: None)
+        sig = sig.replace(parameters=params)
+
+        @functools.wraps(lambda **kwargs: None)
+        def subcommand_func(*args: Any, **kwargs: Any) -> None:
+            # Convert hyphenated keys to underscore keys
+            normalized_kwargs: dict[str, Any] = {}
+            for key, value in kwargs.items():
+                if value is not None:
+                    normalized_kwargs[key] = value
+
+            # Build args dict with subcommand
+            args_dict: dict[str, Any] = {"subcommand": subcommand_name}
+            for arg in args_def:
+                arg_name = arg.get("name", "").replace("-", "_")
+                if arg_name in normalized_kwargs:
+                    args_dict[arg_name] = normalized_kwargs[arg_name]
+
+            # Execute the command
+            executor = CommandExecutor(get_output_manager())
+            result = executor.execute(cmd, args_dict)
+
+            if result.success:
+                get_output_manager().print_result(result)
+            else:
+                get_output_manager().print_error(result.error or "Unknown error")
+
+        subcommand_func.__name__ = subcommand_name
+        subcommand_func.__doc__ = description
+        subcommand_func.__signature__ = sig  # type: ignore[attr-defined]
+
+        return subcommand_func
+
+
+def generate_command_function(
+    cmd: Command,
+    args_def: list[dict[str, Any]],
+    subcommands: list[dict[str, Any]] | None = None,
+):
     """Generate a command function with explicit Typer parameters.
 
     This replaces the previous exec()-based approach with explicit Typer
@@ -541,14 +649,38 @@ def generate_command_function(cmd: Command, args_def: list[dict[str, Any]]):
     Args:
         cmd: Command object
         args_def: List of argument definitions from frontmatter
+        subcommands: Optional list of subcommand definitions
 
     Returns:
-        A command function with explicit parameters
+        A command function with explicit parameters, or a Typer app if subcommands exist
     """
     from agent_arsenal.parser import parse_markdown_command
 
     frontmatter, _ = parse_markdown_command(cmd.path)
     description = frontmatter.get("description", f"Execute {cmd.name} command")
+
+    # If subcommands are provided, create a nested Typer app
+    if subcommands:
+        subcommand_app = typer.Typer(
+            name=cmd.name,
+            help=description,
+            no_args_is_help=True,
+        )
+
+        for subcmd in subcommands:
+            subcmd_name = subcmd.get("name", "")
+            subcmd_desc = subcmd.get("description", "")
+
+            # Create subcommand function
+            subcmd_func = _create_subcommand_func(cmd, args_def, subcmd_name)
+
+            # Register with Typer
+            subcommand_app.command(
+                name=subcmd_name,
+                help=subcmd_desc,
+            )(subcmd_func)
+
+        return subcommand_app
 
     # Store command info for conversion
     key = str(cmd.path)
@@ -706,23 +838,30 @@ def register_commands(typer_app: typer.Typer, group: CommandGroup):
 
         frontmatter, _ = parse_markdown_command(cmd.path)
         args_def = frontmatter.get("args", [])
+        subcommands = frontmatter.get("subcommands")
 
-        # Generate command function
-        cmd_func = generate_command_function(cmd, args_def)
+        # Generate command function (may return Typer app if subcommands exist)
+        cmd_func = generate_command_function(cmd, args_def, subcommands)
 
-        # Register with Typer
-        typer_app.command(
-            name=cmd.name,
-            help=frontmatter.get("description", ""),
-        )(cmd_func)
-
-        # Register aliases if present
-        aliases = frontmatter.get("aliases", [])
-        for alias in aliases:
+        # Handle two return types: Typer app (subcommands) or command function
+        # Check if cmd_func is a Typer app (subcommands case)
+        if hasattr(cmd_func, "callback"):
+            # Subcommands exist - add as nested Typer app
+            typer_app.add_typer(cmd_func, name=cmd.name)
+        else:
+            # No subcommands - register as regular command
             typer_app.command(
-                name=alias,
+                name=cmd.name,
                 help=frontmatter.get("description", ""),
             )(cmd_func)
+
+            # Register aliases if present (only for non-subcommand commands)
+            aliases = frontmatter.get("aliases", [])
+            for alias in aliases:
+                typer_app.command(
+                    name=alias,
+                    help=frontmatter.get("description", ""),
+                )(cmd_func)
 
 
 # Initialize registry and build CLI tree

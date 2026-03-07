@@ -8,17 +8,17 @@ class TestHandleBase64:
 
     def test_encode_basic(self):
         """Test basic Base64 encoding."""
-        result = handle_base64(mode="encode", input="Hello, World!")
+        result = handle_base64(subcommand="encode", input="Hello, World!")
         assert result == "SGVsbG8sIFdvcmxkIQ=="
 
     def test_encode_empty_input(self):
         """Test encoding with no input."""
-        result = handle_base64(mode="encode", input="")
+        result = handle_base64(subcommand="encode", input="")
         assert result == "Error: No input provided"
 
     def test_encode_with_wrap(self):
         """Test encoding with wrap parameter."""
-        result = handle_base64(mode="encode", input="Hello, World!", wrap=10)
+        result = handle_base64(subcommand="encode", input="Hello, World!", wrap=10)
         assert "\n" in result
         # Check that no line exceeds 10 chars
         for line in result.split("\n"):
@@ -26,48 +26,48 @@ class TestHandleBase64:
 
     def test_encode_uppercase(self):
         """Test encoding produces ASCII output."""
-        result = handle_base64(mode="encode", input="test")
+        result = handle_base64(subcommand="encode", input="test")
         assert result.isascii()
 
     def test_decode_basic(self):
         """Test basic Base64 decoding."""
-        result = handle_base64(mode="decode", input="SGVsbG8sIFdvcmxkIQ==")
+        result = handle_base64(subcommand="decode", input="SGVsbG8sIFdvcmxkIQ==")
         assert result == "Hello, World!"
 
     def test_decode_with_padding(self):
         """Test decoding with different padding."""
-        result = handle_base64(mode="decode", input="YQ==")  # 'a' with padding
+        result = handle_base64(subcommand="decode", input="YQ==")  # 'a' with padding
         assert result == "a"
 
     def test_decode_invalid_base64(self):
         """Test decoding invalid Base64."""
-        result = handle_base64(mode="decode", input="not-valid-base64!!!")
+        result = handle_base64(subcommand="decode", input="not-valid-base64!!!")
         assert result.startswith("Error:")
 
     def test_decode_empty_input(self):
         """Test decoding empty input."""
-        result = handle_base64(mode="decode", input="")
+        result = handle_base64(subcommand="decode", input="")
         assert result == ""
 
     def test_unknown_mode(self):
         """Test unknown mode returns error."""
-        result = handle_base64(mode="invalid", input="test")
+        result = handle_base64(subcommand="invalid", input="test")
         assert "Error" in result
         assert "Unknown mode" in result
 
     def test_case_insensitive_mode(self):
         """Test mode is case insensitive."""
-        result = handle_base64(mode="ENCODE", input="test")
+        result = handle_base64(subcommand="ENCODE", input="test")
         assert result == "dGVzdA=="
 
     def test_decode_whitespace_handling(self):
         """Test decoding removes whitespace."""
-        result = handle_base64(mode="decode", input="  SGVsbG8=  ")
+        result = handle_base64(subcommand="decode", input="  SGVsbG8=  ")
         assert result == "Hello"
 
     def test_encode_bytes_input(self):
         """Test encoding bytes input."""
-        result = handle_base64(mode="encode", input=b"bytes")
+        result = handle_base64(subcommand="encode", input=b"bytes")
         assert result == "Ynl0ZXM="
 
     def test_encode_with_stdin(self):
@@ -77,7 +77,7 @@ class TestHandleBase64:
         from unittest.mock import patch
 
         with patch.object(sys, "stdin", StringIO("test")):
-            result = handle_base64(mode="encode", input="-")
+            result = handle_base64(subcommand="encode", input="-")
             assert result == "dGVzdA=="
 
     def test_decode_with_stdin(self):
@@ -87,7 +87,7 @@ class TestHandleBase64:
         from unittest.mock import patch
 
         with patch.object(sys, "stdin", StringIO("dGVzdA==")):
-            result = handle_base64(mode="decode", input="-")
+            result = handle_base64(subcommand="decode", input="-")
             assert result == "test"
 
 

@@ -5,18 +5,16 @@ import sys
 
 
 def handle_json(
+    subcommand: str = "format",
     input: str = "",
-    indent: int = 2,
-    minify: bool = False,
-    validate: bool = False,
+    indent: int | None = 2,
 ) -> str:
     """Format, validate, or minify JSON.
 
     Args:
+        subcommand: Operation subcommand (format, validate, minify)
         input: Input JSON string (use - for stdin)
         indent: Indentation spaces (0 for minified)
-        minify: Minify output
-        validate: Only validate, no output
 
     Returns:
         Formatted/validated JSON
@@ -35,12 +33,12 @@ def handle_json(
         return f"Error: Invalid JSON: {e}"
 
     # Validation only
-    if validate:
+    if subcommand == "validate":
         return "Valid JSON"
 
-    # Determine indent
-    if minify:
-        indent = 0
+    # Minify if requested
+    if subcommand == "minify":
+        indent = None
 
     # Format JSON
     try:

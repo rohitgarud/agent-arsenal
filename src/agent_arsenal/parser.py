@@ -226,6 +226,28 @@ def validate_frontmatter(frontmatter: dict[str, Any]) -> dict[str, Any]:
                 if key not in valid_perm_keys:
                     errors.append(f"Unknown sandbox permission: {key}")
 
+    # Validate subcommands field
+    subcommands = frontmatter.get("subcommands")
+    if subcommands is not None:
+        if not isinstance(subcommands, list):
+            errors.append("'subcommands' must be a list")
+        else:
+            for i, subcmd in enumerate(subcommands):
+                if not isinstance(subcmd, dict):
+                    errors.append(f"subcommands[{i}]: must be a dictionary")
+                    continue
+
+                if "name" not in subcmd:
+                    errors.append(f"subcommands[{i}]: missing required 'name' field")
+
+                # Validate name is a string if present
+                if "name" in subcmd and not isinstance(subcmd["name"], str):
+                    errors.append(f"subcommands[{i}]: 'name' must be a string")
+
+                # Validate description is a string if present
+                if "description" in subcmd and not isinstance(subcmd["description"], str):
+                    errors.append(f"subcommands[{i}]: 'description' must be a string")
+
     if errors:
         raise ValidationError(errors)
 

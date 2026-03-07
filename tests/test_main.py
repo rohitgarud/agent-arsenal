@@ -290,7 +290,7 @@ class TestJsonFlag:
     def test_json_flag_hash_command(self, runner):
         """Test --json flag with hash command returns valid JSON."""
         result = runner.invoke(
-            app, ["--json", "common", "hash", "--input", "hello", "--algorithm", "sha256"]
+            app, ["--json", "common", "hash", "sha256", "--input", "hello"]
         )
         assert result.exit_code == 0
         parsed = json.loads(result.output)

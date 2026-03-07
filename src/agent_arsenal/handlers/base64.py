@@ -5,14 +5,14 @@ import sys
 
 
 def handle_base64(
-    mode: str = "encode",
+    subcommand: str = "encode",
     input: str = "",
     wrap: int = 0,
 ) -> str:
     """Encode or decode Base64.
 
     Args:
-        mode: Operation mode (encode or decode)
+        subcommand: Operation subcommand (encode or decode)
         input: Input string (use - for stdin)
         wrap: Wrap output at this column (0 to disable)
 
@@ -23,10 +23,10 @@ def handle_base64(
     if input == "-":
         input = sys.stdin.read().rstrip("\n")
 
-    if not input and mode == "encode":
+    if not input and subcommand == "encode":
         return "Error: No input provided"
 
-    mode = mode.lower()
+    mode = subcommand.lower()
 
     try:
         if mode == "encode":

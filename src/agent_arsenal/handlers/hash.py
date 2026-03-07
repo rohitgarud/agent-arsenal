@@ -6,14 +6,14 @@ import sys
 
 
 def handle_hash(
-    algorithm: str = "sha256",
+    subcommand: str = "sha256",
     input: str = "",
     encoding: str = "utf-8",
 ) -> str:
     """Compute cryptographic hashes.
 
     Args:
-        algorithm: Hash algorithm (md5, sha256, sha512)
+        subcommand: Hash algorithm subcommand (md5, sha1, sha256, sha512)
         input: Input string to hash (use - for stdin)
         encoding: Input encoding (utf-8, latin-1, hex, base64)
 
@@ -27,16 +27,18 @@ def handle_hash(
     if not input:
         return "Error: No input provided"
 
-    # Get the hash algorithm
-    algorithm = algorithm.lower()
+    # Use subcommand as algorithm
+    algorithm = subcommand.lower()
     if algorithm == "md5":
         hasher = hashlib.md5()
+    elif algorithm == "sha1":
+        hasher = hashlib.sha1()
     elif algorithm == "sha256":
         hasher = hashlib.sha256()
     elif algorithm == "sha512":
         hasher = hashlib.sha512()
     else:
-        return f"Error: Unknown algorithm '{algorithm}'. Supported: md5, sha256, sha512"
+        return f"Error: Unknown algorithm '{algorithm}'. Supported: md5, sha1, sha256, sha512"
 
     # Decode input based on encoding
     try:

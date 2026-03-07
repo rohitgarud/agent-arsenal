@@ -5,11 +5,12 @@ execution_type: executable
 executable_type: python
 executable_path: base64.handle_base64
 sandbox: false
+subcommands:
+  - name: encode
+    description: Encode input to Base64
+  - name: decode
+    description: Decode Base64 to plain text
 args:
-  - name: mode
-    type: string
-    default: encode
-    description: Mode (encode or decode)
   - name: input
     type: string
     default: ""
@@ -28,20 +29,19 @@ Encode or decode Base64 strings.
 
 ```bash
 # Encode to Base64
-arsenal common base64 --input "Hello, World!"
+arsenal common base64 encode --input "Hello, World!"
 
 # Decode from Base64
-arsenal common base64 --mode decode --input "SGVsbG8="
+arsenal common base64 decode --input "SGVsbG8="
 
 # Read from stdin
-echo "Hello" | arsenal common base64
+echo "Hello" | arsenal common base64 encode
 
 # Wrap output at 76 characters
-arsenal common base64 --input "Hello" --wrap 76
+arsenal common base64 encode --input "Hello" --wrap 76
 ```
 
 ## Arguments
 
-- `--mode`: Operation mode - encode or decode. Default: encode
 - `--input`: Input string to process. Use "-" to read from stdin. Default: (empty)
 - `--wrap`: Wrap output at this column. Use 0 to disable wrapping. Default: 0

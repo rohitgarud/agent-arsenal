@@ -285,6 +285,94 @@ class TestValidateFrontmatter:
             validate_frontmatter(fm)
         assert "Unknown sandbox permission" in str(exc.value)
 
+    # Subcommand validation tests
+    def test_valid_subcommands(self):
+        """Test validation passes with valid subcommands."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "subcommands": [
+                {"name": "encode", "description": "Encode input"},
+                {"name": "decode", "description": "Decode input"},
+            ],
+        }
+        result = validate_frontmatter(fm)
+        assert len(result["subcommands"]) == 2
+        assert result["subcommands"][0]["name"] == "encode"
+
+    def test_valid_subcommands_minimal(self):
+        """Test validation passes with minimal subcommands (name only)."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "subcommands": [{"name": "encode"}],
+        }
+        result = validate_frontmatter(fm)
+        assert len(result["subcommands"]) == 1
+        assert result["subcommands"][0]["name"] == "encode"
+
+    def test_invalid_subcommands_not_list(self):
+        """Test validation fails when subcommands is not a list."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "subcommands": "encode",
+        }
+        with pytest.raises(ValidationError) as exc:
+            validate_frontmatter(fm)
+        assert "'subcommands' must be a list" in str(exc.value)
+
+    def test_invalid_subcommand_not_dict(self):
+        """Test validation fails when subcommand item is not a dict."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "subcommands": ["encode"],
+        }
+        with pytest.raises(ValidationError) as exc:
+            validate_frontmatter(fm)
+        assert "subcommands[0]: must be a dictionary" in str(exc.value)
+
+    def test_invalid_subcommand_missing_name(self):
+        """Test validation fails when subcommand missing required name."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "subcommands": [{"description": "Encode input"}],
+        }
+        with pytest.raises(ValidationError) as exc:
+            validate_frontmatter(fm)
+        assert "subcommands[0]: missing required 'name' field" in str(exc.value)
+
+    def test_invalid_subcommand_name_not_string(self):
+        """Test validation fails when subcommand name is not a string."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "subcommands": [{"name": 123}],
+        }
+        with pytest.raises(ValidationError) as exc:
+            validate_frontmatter(fm)
+        assert "subcommands[0]: 'name' must be a string" in str(exc.value)
+
+    def test_invalid_subcommand_description_not_string(self):
+        """Test validation fails when subcommand description is not a string."""
+        fm = {
+            "name": "test",
+            "description": "Test command",
+            "execution_type": "prompt",
+            "subcommands": [{"name": "encode", "description": 123}],
+        }
+        with pytest.raises(ValidationError) as exc:
+            validate_frontmatter(fm)
+        assert "subcommands[0]: 'description' must be a string" in str(exc.value)
+
 
 class TestGetHandlerInfo:
     """Tests for get_handler_info function."""

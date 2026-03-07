@@ -333,7 +333,7 @@ class TestExecuteIntegration:
 
         executor = CommandExecutor()
 
-        result = executor.execute(cmd, {"input": "test", "algorithm": "sha256"})
+        result = executor.execute(cmd, {"input": "test", "subcommand": "sha256"})
         assert result.success
         # SHA256 hash length
         assert len(result.output) == 64
@@ -364,12 +364,12 @@ class TestExecuteIntegration:
         executor = CommandExecutor()
 
         # Valid JSON
-        result = executor.execute(cmd, {"input": '{"key":"value"}', "validate": True})
+        result = executor.execute(cmd, {"input": '{"key":"value"}', "subcommand": "validate"})
         assert result.success
         assert "Valid" in result.output
 
         # Invalid JSON - returns success with error message in output
-        result = executor.execute(cmd, {"input": '{"key":}', "validate": True})
+        result = executor.execute(cmd, {"input": '{"key":}', "subcommand": "validate"})
         assert "Invalid JSON" in result.output or "Error" in result.output
 
     def test_execute_node_version_command(self, tmp_path):
