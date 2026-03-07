@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict, cast
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +20,34 @@ class Scope(Enum):
     SESSION = "session"  # In-memory only
     PERSISTENT = "persistent"  # Saved to disk
     PROJECT = "project"  # Saved to .arsenal/ in project
+
+
+class SessionMetadata(TypedDict):
+    """Metadata for a session."""
+
+    session_id: str
+    created_at: str
+    pid: int
+    expires_at: str | None
+
+
+class SessionData(TypedDict):
+    """Session data structure."""
+
+    metadata: SessionMetadata
+    data: dict[str, Any]
+
+
+class SessionError(Exception):
+    """Base exception for session-related errors."""
+
+    pass
+
+
+class SessionCorruptedError(SessionError):
+    """Session file is corrupted or invalid."""
+
+    pass
 
 
 class ArsenalState:
@@ -56,7 +86,105 @@ class ArsenalState:
         self.state_file = self.state_dir / "state.json"
         self.project_state_file: Path | None = None
 
+        # Session management
+        self.session_dir: Path = self.state_dir / "sessions"
+        self.session_id: str = self._get_session_id()
+        self.session_file: Path | None = self._get_session_file_path(self.session_id)
+        self._session_lock = threading.Lock()
+
+        # Create session_dir on init
+        self.session_dir.mkdir(parents=True, exist_ok=True)
+
         self._initialized = True
+
+    def _get_session_id(self) -> str:
+        """Get session ID from ARSENAL_SESSION_ID env var or generate default."""
+        session_id = os.environ.get("ARSENAL_SESSION_ID")
+        if session_id:
+            return session_id
+        # Use PID-based default for this process
+        return f"pid-{os.getpid()}"
+
+    def _get_session_file_path(self, session_id: str) -> Path:
+        """Get path to session file for given session ID."""
+        return self.session_dir / f"{session_id}.json"
+
+    def get_session_id(self) -> str:
+        """Get the current session ID."""
+        return self.session_id
+
+    def set_session_id(self, session_id: str) -> None:
+        """Set the current session ID and reload session file."""
+        self.session_id = session_id
+        self.session_file = self._get_session_file_path(session_id)
+        self.restore_session()
+
+    def _atomic_write(self, path: Path, data: dict[str, Any]) -> None:
+        """Write data atomically using temp file + rename."""
+        with self._session_lock:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temp = path.with_suffix(".tmp")
+            temp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            temp.replace(path)  # Atomic on POSIX
+
+    def persist_session(self) -> None:
+        """Save session state to session file (atomic write)."""
+        if not self.session_file:
+            return
+        session_data: SessionData = {
+            "metadata": {
+                "session_id": self.session_id,
+                "created_at": datetime.now().isoformat(),
+                "pid": os.getpid(),
+                "expires_at": None,
+            },
+            "data": self._session_state,
+        }
+        self._atomic_write(self.session_file, cast(dict[str, Any], session_data))
+
+    def restore_session(self) -> None:
+        """Restore session state from session file."""
+        if not self.session_file or not self.session_file.exists():
+            return
+        try:
+            content = self.session_file.read_text(encoding="utf-8")
+            if content.strip():
+                session_data: SessionData = json.loads(content)
+                self._session_state = session_data.get("data", {})
+        except (json.JSONDecodeError, KeyError) as e:
+            self._session_state = {}
+            logger.warning("Failed to restore session state: %s", e)
+
+    def cleanup_sessions(self) -> int:
+        """Remove stale/orphaned session files.
+
+        Returns:
+            Number of sessions cleaned up
+        """
+        if not self.session_dir.exists():
+            return 0
+        cleaned = 0
+        for session_file in self.session_dir.glob("*.json"):
+            try:
+                content = session_file.read_text()
+                if content.strip():
+                    data: SessionData = json.loads(content)
+                    pid = data.get("metadata", {}).get("pid")
+                    # Check if PID is still running
+                    if pid and not self._is_pid_running(pid):
+                        session_file.unlink()
+                        cleaned += 1
+            except Exception:
+                continue
+        return cleaned
+
+    def _is_pid_running(self, pid: int) -> bool:
+        """Check if a process with given PID is running."""
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
 
     def _get_state_dict(self, scope: Scope) -> dict[str, Any]:
         """Get the state dictionary for a scope.
@@ -178,6 +306,9 @@ class ArsenalState:
         """
         state_dict = self._get_state_dict(scope)
         self._set_nested_value(state_dict, key, value)
+        # Auto-persist session on SESSION set
+        if scope == Scope.SESSION and self.session_file:
+            self.persist_session()
 
     def delete(self, key: str, scope: Scope = Scope.SESSION) -> bool:
         """Remove key from state.
@@ -190,7 +321,11 @@ class ArsenalState:
             True if key was deleted, False if not found
         """
         state_dict = self._get_state_dict(scope)
-        return self._delete_nested_value(state_dict, key)
+        result = self._delete_nested_value(state_dict, key)
+        # Auto-persist session on SESSION delete
+        if result and scope == Scope.SESSION and self.session_file:
+            self.persist_session()
+        return result
 
     def persist(self):
         """Save persistent state to disk."""
@@ -236,6 +371,9 @@ class ArsenalState:
             self._project_state.clear()
         elif scope == Scope.SESSION:
             self._session_state.clear()
+            # Auto-persist after clearing session
+            if self.session_file:
+                self.persist_session()
         elif scope == Scope.PERSISTENT:
             self._persistent_state.clear()
         elif scope == Scope.PROJECT:
@@ -303,3 +441,15 @@ try:
     state.restore()
 except Exception as e:
     logger.warning("Failed to restore persistent state: %s", e)
+
+# Auto-restore session state on module load
+try:
+    state.restore_session()
+except Exception as e:
+    logger.warning("Failed to restore session state: %s", e)
+
+# Clean up stale sessions
+try:
+    state.cleanup_sessions()
+except Exception as e:
+    logger.warning("Failed to cleanup sessions: %s", e)
