@@ -20,12 +20,14 @@ from agent_arsenal.sandbox import (
     SandboxConfig,
     SandboxPermissions,
 )
+from agent_arsenal.vfs import VFSManager
 
 __version__ = "0.1.0"
 
 __all__ = [
     "__version__",
     "CacheManager",
+    "VFSManager",
     "get_config_path",
     "load_config",
     "save_config",

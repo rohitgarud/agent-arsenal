@@ -43,3 +43,21 @@ class ExecutorError(ArsenalError):
     """Raised when executor encounters an error."""
 
     pass
+
+
+class VFSError(ArsenalError):
+    """Base exception for all VFS errors."""
+
+    pass
+
+
+class VFSNotFoundError(VFSError):
+    """Raised when a requested virtual file cannot be found."""
+
+    pass
+
+
+class VFSTransactionError(VFSError):
+    """Raised when a VFS transaction fails."""
+
+    pass
