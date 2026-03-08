@@ -17,6 +17,8 @@ if TYPE_CHECKING:
     from agent_arsenal.registry import Command
 
 # Sandbox imports
+# Cache import
+from agent_arsenal.cache import CacheManager
 from agent_arsenal.config import (
     get_sandbox_permissions_for_command,
     load_sandbox_config,
@@ -70,6 +72,7 @@ class CommandExecutor:
                           If None, uses module-level verbose mode.
         """
         self._output_manager = output_manager
+        self._cache_manager = CacheManager.get_instance()
 
     def _print_verbose(self, content: str) -> None:
         """Print verbose debug information.
@@ -101,7 +104,10 @@ class CommandExecutor:
             return CommandResult(success=False, output="", error=str(e))
 
     def execute(self, command_obj: Command, args: dict[str, Any]) -> CommandResult:
-        """Execute a command based on its execution type."""
+        """Execute a command based on its execution type.
+
+        Includes caching: checks cache before execution, caches successful results.
+        """
         from agent_arsenal.parser import (
             get_handler_info,
             parse_markdown_command,
@@ -113,6 +119,64 @@ class CommandExecutor:
         handler_info = get_handler_info(fm)
         exec_type = handler_info.get("type", "prompt")
 
+        # === CACHE CHECK ===
+        if self._cache_manager.is_enabled():
+            # Generate cache key
+            key = self._cache_manager.generate_key(
+                command_obj.path, args, execution_type=exec_type
+            )
+
+            # Try cache lookup
+            cached = self._cache_manager.get(key, command_obj.path)
+            if cached is not None:
+                self._print_verbose(f"Cache HIT: {key[:16]}...")
+                return cached
+
+            # Cache miss - execute and cache
+            self._print_verbose(f"Cache MISS: {key[:16]}...")
+
+            # Execute the command
+            result = self._execute_with_sandbox(
+                command_obj, args, exec_type, handler_info, fm
+            )
+
+            # Cache successful results (not errors)
+            if result.success:
+                self._cache_manager.set(
+                    key,
+                    result,
+                    ttl=self._cache_manager.get_default_ttl(),
+                    command_path=command_obj.path,
+                    execution_type=exec_type,
+                )
+
+            return result
+        else:
+            # Caching disabled - execute directly
+            return self._execute_with_sandbox(
+                command_obj, args, exec_type, handler_info, fm
+            )
+
+    def _execute_with_sandbox(
+        self,
+        command_obj: Command,
+        args: dict[str, Any],
+        exec_type: str,
+        handler_info: dict[str, Any],
+        fm: dict[str, Any],
+    ) -> CommandResult:
+        """Execute command with sandbox logic (refactored from execute()).
+
+        Args:
+            command_obj: Command object
+            args: Command arguments
+            exec_type: Execution type (prompt, python, bash, template, node)
+            handler_info: Parsed handler info from frontmatter
+            fm: Parsed frontmatter dict
+
+        Returns:
+            CommandResult
+        """
         # Verbose output before execution
         self._print_verbose(f"Executing handler: {handler_info.get('path', 'inline')}")
         self._print_verbose(f"Args: {args}")

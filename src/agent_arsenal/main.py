@@ -9,6 +9,7 @@ import typer
 from rich.console import Console
 
 from agent_arsenal import __version__
+from agent_arsenal.cache import CacheManager
 from agent_arsenal.config import (
     get_command_directories,
     load_sandbox_config,
@@ -86,6 +87,15 @@ state_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(state_app, name="state")
+
+
+# Cache command group
+cache_app = typer.Typer(
+    name="cache",
+    help="Manage command result cache",
+    no_args_is_help=True,
+)
+app.add_typer(cache_app, name="cache")
 
 
 @app.command("list")
@@ -499,6 +509,26 @@ def state_clear(
         scope_enum = _parse_scope(scope)
         state.clear(scope_enum)
         console.print(f"[green]Cleared {scope} scope[/green]")
+
+
+@cache_app.command("clear")
+def cache_clear():
+    """Clear all cached command results."""
+    cache_manager = CacheManager.get_instance()
+    count = cache_manager.clear()
+    console.print(f"[green]Cleared {count} cache entries[/green]")
+
+
+@cache_app.command("stats")
+def cache_stats():
+    """Show cache statistics."""
+    cache_manager = CacheManager.get_instance()
+    stats = cache_manager.get_stats()
+
+    console.print("[bold]Cache Statistics:[/bold]")
+    console.print(f"  Enabled: {stats['enabled']}")
+    console.print(f"  Default TTL: {stats['default_ttl']}s")
+    console.print(f"  Entries: {stats['entry_count']}")
 
 
 def _parse_scope(scope_str: str):
@@ -953,6 +983,16 @@ def main(
         help="Output in JSON format",
         is_flag=True,
     ),
+    cache: bool = typer.Option(
+        True,
+        "--cache/--no-cache",
+        help="Enable/disable result caching (default: enabled)",
+    ),
+    cache_ttl: int = typer.Option(
+        3600,
+        "--cache-ttl",
+        help="Cache TTL in seconds (default: 3600 = 1 hour)",
+    ),
 ):
     """
     Agent Arsenal - A global CLI tool for coding agents to use in development.
@@ -965,6 +1005,11 @@ def main(
     # Initialize output manager with quiet/no_color/settings
     config = OutputConfig(quiet=quiet, verbose=verbose, no_color=no_color, json=json)
     _output_manager = OutputManager(config)
+
+    # Configure cache based on CLI flags
+    cache_manager = CacheManager.get_instance()
+    cache_manager.set_enabled(cache)
+    cache_manager.set_default_ttl(cache_ttl)
 
     if debug:
         console.print("[yellow]Debug mode enabled[/yellow]")

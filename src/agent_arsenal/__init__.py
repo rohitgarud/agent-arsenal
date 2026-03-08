@@ -1,5 +1,6 @@
 """Agent Arsenal - A global CLI tool for coding agents to use in development."""
 
+from agent_arsenal.cache import CacheManager
 from agent_arsenal.config import (
     add_command_directory,
     get_command_directories,
@@ -24,6 +25,7 @@ __version__ = "0.1.0"
 
 __all__ = [
     "__version__",
+    "CacheManager",
     "get_config_path",
     "load_config",
     "save_config",
