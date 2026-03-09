@@ -102,8 +102,8 @@ class ArsenalState:
         session_id = os.environ.get("ARSENAL_SESSION_ID")
         if session_id:
             return session_id
-        # Use PID-based default for this process
-        return f"pid-{os.getpid()}"
+        # Use PPID-based default for this terminal session
+        return f"ppid-{os.getppid()}"
 
     def _get_session_file_path(self, session_id: str) -> Path:
         """Get path to session file for given session ID."""
@@ -135,7 +135,7 @@ class ArsenalState:
             "metadata": {
                 "session_id": self.session_id,
                 "created_at": datetime.now().isoformat(),
-                "pid": os.getpid(),
+                "pid": os.getppid(),
                 "expires_at": None,
             },
             "data": self._session_state,
@@ -165,6 +165,9 @@ class ArsenalState:
             return 0
         cleaned = 0
         for session_file in self.session_dir.glob("*.json"):
+            # Don't clean up our own current session
+            if self.session_file and session_file == self.session_file:
+                continue
             try:
                 content = session_file.read_text()
                 if content.strip():
