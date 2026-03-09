@@ -95,9 +95,9 @@ class TestParseScope:
 
     def test_scope_multiple(self):
         """Test parsing multiple scopes."""
-        scope = "common:time"
+        scope = "common:datetime"
         parts = scope.split(":")
-        assert parts == ["common", "time"]
+        assert parts == ["common", "datetime"]
 
 
 class TestRegisterCommands:
@@ -193,7 +193,7 @@ class TestExternalCommands:
 
     def test_run_timestamp_command(self, runner):
         """Test running timestamp command."""
-        result = runner.invoke(app, ["common", "time", "timestamp"])
+        result = runner.invoke(app, ["common", "datetime", "timestamp"])
         # Should return timestamp output
         assert result is not None
 
@@ -301,7 +301,7 @@ class TestJsonFlag:
 
     def test_json_flag_timestamp_command(self, runner):
         """Test --json flag with timestamp command returns valid JSON."""
-        result = runner.invoke(app, ["--json", "common", "time", "timestamp"])
+        result = runner.invoke(app, ["--json", "common", "datetime", "timestamp"])
         assert result.exit_code == 0
         parsed = json.loads(result.output)
         assert parsed["success"] is True

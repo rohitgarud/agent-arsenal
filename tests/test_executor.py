@@ -214,9 +214,9 @@ Hello World!
         # Test with the timestamp handler
         cmd_path = (
             Path(__file__).parent.parent
-            / "src/agent_arsenal/commands/common/time/timestamp.md"
+            / "src/agent_arsenal/commands/common/datetime/timestamp.md"
         )
-        cmd = Command(name="timestamp", path=cmd_path, parent="common.time")
+        cmd = Command(name="timestamp", path=cmd_path, parent="common.datetime")
 
         result = executor.execute_python(cmd, {"format": "%Y-%m-%d"})
 
@@ -294,9 +294,9 @@ class TestExecuteIntegration:
         """Test executing the timestamp command."""
         cmd_path = (
             Path(__file__).parent.parent
-            / "src/agent_arsenal/commands/common/time/timestamp.md"
+            / "src/agent_arsenal/commands/common/datetime/timestamp.md"
         )
-        cmd = Command(name="timestamp", path=cmd_path, parent="common.time")
+        cmd = Command(name="timestamp", path=cmd_path, parent="common.datetime")
 
         executor = CommandExecutor()
 
@@ -668,9 +668,9 @@ Hello {name}! You are {age} years old.
         """Test execute_python with a handler that raises an error."""
         cmd_path = (
             Path(__file__).parent.parent
-            / "src/agent_arsenal/commands/common/time/timestamp.md"
+            / "src/agent_arsenal/commands/common/datetime/timestamp.md"
         )
-        cmd = Command(name="timestamp", path=cmd_path, parent="common.time")
+        cmd = Command(name="timestamp", path=cmd_path, parent="common.datetime")
 
         executor = CommandExecutor()
 
