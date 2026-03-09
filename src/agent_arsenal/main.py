@@ -307,6 +307,174 @@ sandbox_app = typer.Typer(
 config_app.add_typer(sandbox_app, name="sandbox")
 
 
+# Commands visibility subcommand group under config
+commands_config_app = typer.Typer(
+    name="commands",
+    help="Manage command visibility (include/exclude lists)",
+    no_args_is_help=True,
+)
+config_app.add_typer(commands_config_app, name="commands")
+
+
+@commands_config_app.command("show")
+def commands_show():
+    """Show visible commands based on current config."""
+    from pathlib import Path
+
+    from agent_arsenal.config import load_command_filter
+    from agent_arsenal.registry import CommandRegistry
+
+    # Load filter config
+    filter_config = load_command_filter()
+
+    # Get commands from registry with filter applied
+    commands_dir = Path(__file__).parent / "commands"
+    from agent_arsenal.config import get_command_directories
+
+    external_dirs = get_command_directories()
+    registry = CommandRegistry(commands_dir, external_dirs)
+    command_tree = registry.list_commands()
+
+    # Print current filter config
+    console.print("[bold]Command Filter Configuration:[/bold]")
+    include_list = filter_config.get("include", [])
+    exclude_list = filter_config.get("exclude", [])
+
+    if include_list:
+        console.print(f"  Include: {', '.join(include_list)}")
+    else:
+        console.print("  Include: (all commands)")
+
+    if exclude_list:
+        console.print(f"  Exclude: {', '.join(exclude_list)}")
+    else:
+        console.print("  Exclude: (none)")
+
+    # Count visible commands
+    def count_commands(g):
+        count = len(g.commands)
+        for sg in g.subgroups:
+            count += count_commands(sg)
+        return count
+
+    visible_count = count_commands(command_tree)
+    console.print(f"\n[bold]Visible Commands:[/bold] {visible_count} commands")
+
+    # Print tree if there are visible commands
+    if visible_count > 0:
+        def print_tree(g, prefix="", is_last=True):
+            connector = "└── " if is_last else "├── "
+
+            # Print commands in this group
+            for i, cmd in enumerate(g.commands):
+                is_last_cmd = i == len(g.commands) - 1 and len(g.subgroups) == 0
+                cmd_connector = "└── " if is_last_cmd else "├── "
+                console.print(f"{prefix}{cmd_connector}[cyan]{cmd.name}[/cyan]")
+
+            # Print subgroups
+            for i, sg in enumerate(g.subgroups):
+                is_last_sg = i == len(g.subgroups) - 1
+                child_prefix = prefix + ("    " if is_last else "│   ")
+                desc = f" — {sg.description}" if sg.description else ""
+                console.print(f"{prefix}{connector}[bold]{sg.name}[/bold]{desc}")
+                print_tree(sg, child_prefix, is_last_sg)
+
+        console.print("")
+        print_tree(command_tree)
+
+
+@commands_config_app.command("list")
+def commands_list():
+    """List current include/exclude configuration."""
+    from agent_arsenal.config import load_command_filter
+
+    filter_config = load_command_filter()
+    include_list = filter_config.get("include", [])
+    exclude_list = filter_config.get("exclude", [])
+
+    console.print("[bold]Command Filter:[/bold]")
+    console.print(f"  Include: {include_list if include_list else '(all commands)'}")
+    console.print(f"  Exclude: {exclude_list if exclude_list else '(none)'}")
+
+
+@commands_config_app.command("include")
+def commands_include(
+    action: str = typer.Argument(..., help="Action: set, add, remove, clear"),
+    patterns: list[str] = typer.Argument(..., help="Patterns for set/add/remove"),
+):
+    """Manage include list.
+
+    Examples:
+        arsenal config commands include set database api
+        arsenal config commands include add database
+        arsenal config commands include remove database
+        arsenal config commands include clear
+    """
+
+    from agent_arsenal.config import update_command_filter
+
+    action = action.lower()
+
+    # Handle clear specially (no patterns needed)
+    if action == "clear":
+        result = update_command_filter("include", "clear")
+        console.print("[green]Include list cleared[/green]")
+        console.print(f"Current include: {result.get('include', [])}")
+        return
+
+    if action not in ("set", "add", "remove"):
+        console.print(f"[red]Invalid action: {action}[/red]")
+        console.print("Valid actions: set, add, remove, clear")
+        raise typer.Exit(1)
+
+    result = update_command_filter("include", action, patterns)
+    console.print("[green]Include list updated[/green]")
+    console.print(f"Current include: {result.get('include', [])}")
+
+
+@commands_config_app.command("exclude")
+def commands_exclude(
+    action: str = typer.Argument(..., help="Action: set, add, remove, clear"),
+    patterns: list[str] = typer.Argument(..., help="Patterns for set/add/remove"),
+):
+    """Manage exclude list.
+
+    Examples:
+        arsenal config commands exclude set database/reset
+        arsenal config commands exclude add api/*
+        arsenal config commands exclude remove api/*
+        arsenal config commands exclude clear
+    """
+    from agent_arsenal.config import update_command_filter
+
+    action = action.lower()
+
+    # Handle clear specially (no patterns needed)
+    if action == "clear":
+        result = update_command_filter("exclude", "clear")
+        console.print("[green]Exclude list cleared[/green]")
+        console.print(f"Current exclude: {result.get('exclude', [])}")
+        return
+
+    if action not in ("set", "add", "remove"):
+        console.print(f"[red]Invalid action: {action}[/red]")
+        console.print("Valid actions: set, add, remove, clear")
+        raise typer.Exit(1)
+
+    result = update_command_filter("exclude", action, patterns)
+    console.print("[green]Exclude list updated[/green]")
+    console.print(f"Current exclude: {result.get('exclude', [])}")
+
+
+@commands_config_app.command("reset")
+def commands_reset():
+    """Reset all filters (clear include and exclude)."""
+    from agent_arsenal.config import save_command_filter
+
+    save_command_filter({"include": [], "exclude": []})
+    console.print("[green]All command filters cleared[/green]")
+
+
 @sandbox_app.command("show")
 def sandbox_show():
     """Display current sandbox configuration."""

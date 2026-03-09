@@ -1,5 +1,6 @@
 """Command registry for discovering and loading commands from filesystem."""
 
+import fnmatch
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -165,19 +166,35 @@ class CommandRegistry:
         self.scan_all()
 
     def list_commands(
-        self, group: str | None = None, max_depth: int | None = None
+        self,
+        group: str | None = None,
+        max_depth: int | None = None,
+        apply_filter: bool = True,
     ) -> CommandGroup:
         """List all commands as a hierarchical tree.
 
         Args:
             group: Optional group name to filter by (becomes new root)
             max_depth: Maximum depth to traverse (None = unlimited, 0 = show all)
+            apply_filter: Whether to apply include/exclude filtering (default: True)
 
         Returns:
             CommandGroup root with nested commands and subgroups
         """
         # Scan all commands to get the full tree
         root_group = self.scan_all()
+
+        # Apply include/exclude filtering
+        if apply_filter:
+            from agent_arsenal.config import load_command_filter
+
+            filter_config = load_command_filter()
+            if filter_config.get("include") or filter_config.get("exclude"):
+                root_group = self.filter_commands(
+                    root_group,
+                    filter_config.get("include", []),
+                    filter_config.get("exclude", []),
+                )
 
         # Filter by group if specified
         if group:
@@ -263,5 +280,242 @@ class CommandRegistry:
             path=group.path,
             description=group.description,
             commands=group.commands,
+            subgroups=filtered_subgroups,
+        )
+
+    # =============================================================================
+    # Command Filter Methods
+    # =============================================================================
+
+    def _get_all_command_paths(
+        self,
+        group: CommandGroup | None = None,
+        prefix: str = "",
+    ) -> set[str]:
+        """Get all command paths in the tree as strings.
+
+        Args:
+            group: Root group to scan (defaults to full scan)
+            prefix: Prefix for building path strings
+
+        Returns:
+            Set of paths like {"database/seed", "api/users/list", ...}
+        """
+        if group is None:
+            group = self.scan_all()
+
+        paths: set[str] = set()
+
+        # Add commands in this group
+        for cmd in group.commands:
+            if prefix:
+                cmd_path = f"{prefix}/{cmd.name}"
+            else:
+                cmd_path = cmd.name
+            paths.add(cmd_path)
+
+        # Recurse into subgroups
+        for subgroup in group.subgroups:
+            if prefix:
+                subgroup_path = f"{prefix}/{subgroup.name}"
+            else:
+                subgroup_path = subgroup.name
+            paths.update(self._get_all_command_paths(subgroup, subgroup_path))
+
+        return paths
+
+    def _matches_pattern(self, command_path: str, pattern: str) -> bool:
+        """Check if command path matches a single pattern.
+
+        Args:
+            command_path: Full path like "database/seed" or group path like "database"
+            pattern: Pattern to match against
+
+        Returns:
+            True if matches
+        """
+        # Exact match
+        if command_path == pattern:
+            return True
+
+        # Group match - pattern is a group name that is a prefix of command_path
+        # e.g., "database" matches "database/seed" but not "database2/seed"
+        if command_path.startswith(pattern + "/"):
+            return True
+
+        # Glob patterns (fnmatch)
+        # Simple glob: "api/*" matches "api/users" but not "api/users/list"
+        if "*" in pattern:
+            # Check if it's a recursive glob (/**)
+            if pattern.endswith("/**"):
+                base_pattern = pattern[:-3]  # Remove /**
+                # Match base and anything after
+                if command_path == base_pattern:
+                    return True
+                if command_path.startswith(base_pattern + "/"):
+                    return True
+            else:
+                # For glob patterns like "api/*", also check if the group itself matches
+                # "api/*" should match group "api" (meaning all commands in api)
+                # First check if fnmatch matches the full path
+                if fnmatch.fnmatch(command_path, pattern):
+                    return True
+                # Then check if the pattern without the glob suffix matches as a group
+                # e.g., "api/*" -> "api" should match group "api"
+                prefix = pattern.rstrip("*").rstrip("/")
+                if prefix and (command_path == prefix or command_path.startswith(prefix + "/")):
+                    return True
+
+        return False
+
+    def _matches_any_pattern(self, command_path: str, patterns: list[str]) -> bool:
+        """Check if command matches any pattern in the list.
+
+        Args:
+            command_path: Full command path
+            patterns: List of patterns
+
+        Returns:
+            True if matches any pattern
+        """
+        for pattern in patterns:
+            if self._matches_pattern(command_path, pattern):
+                return True
+        return False
+
+    def _get_all_subgroup_names(
+        self,
+        group: CommandGroup,
+        prefix: str = "",
+    ) -> set[str]:
+        """Get all subgroup names including nested ones.
+
+        Args:
+            group: Root group to scan
+            prefix: Prefix for building path strings
+
+        Returns:
+            Set of subgroup paths like {"database", "database/migrate", ...}
+        """
+        names: set[str] = set()
+
+        for subgroup in group.subgroups:
+            if prefix:
+                subgroup_path = f"{prefix}/{subgroup.name}"
+            else:
+                subgroup_path = subgroup.name
+            names.add(subgroup_path)
+            # Recurse into subgroups
+            names.update(self._get_all_subgroup_names(subgroup, subgroup_path))
+
+        return names
+
+    def filter_commands(
+        self,
+        group: CommandGroup,
+        include: list[str],
+        exclude: list[str],
+    ) -> CommandGroup:
+        """Filter command tree based on include/exclude patterns.
+
+        Args:
+            group: Root CommandGroup to filter
+            include: List of patterns to include (empty = all)
+            exclude: List of patterns to exclude
+
+        Returns:
+            New CommandGroup with filtering applied
+        """
+        # If both are empty, return original
+        if not include and not exclude:
+            return group
+
+        # Get all command paths for reference
+        all_paths = self._get_all_command_paths(group)
+        all_groups = self._get_all_subgroup_names(group)
+
+        # Determine which commands should be included
+        included_paths: set[str] = set()
+
+        if include:
+            # Start with empty and add matches
+            for pattern in include:
+                # Check if pattern matches a group
+                for group_name in all_groups:
+                    if self._matches_pattern(group_name, pattern):
+                        # Add all commands in this group
+                        for path in all_paths:
+                            if path.startswith(group_name + "/") or path == group_name:
+                                included_paths.add(path)
+
+                # Check if pattern matches a command
+                for path in all_paths:
+                    if self._matches_pattern(path, pattern):
+                        included_paths.add(path)
+        else:
+            # No include list - include all
+            included_paths = all_paths.copy()
+
+        # Apply exclude - remove matching paths
+        if exclude:
+            for pattern in exclude:
+                # Find all paths matching the exclude pattern
+                paths_to_remove = set()
+                for path in included_paths:
+                    if self._matches_pattern(path, pattern):
+                        paths_to_remove.add(path)
+                included_paths -= paths_to_remove
+
+        # Build filtered tree
+        return self._build_filtered_tree(group, included_paths)
+
+    def _build_filtered_tree(
+        self,
+        group: CommandGroup,
+        included_paths: set[str],
+        prefix: str = "",
+    ) -> CommandGroup:
+        """Build a filtered command tree.
+
+        Args:
+            group: Original CommandGroup
+            included_paths: Set of paths to include
+            prefix: Current path prefix
+
+        Returns:
+            New filtered CommandGroup
+        """
+        # Filter commands in this group
+        filtered_commands: list[Command] = []
+        for cmd in group.commands:
+            if prefix:
+                cmd_path = f"{prefix}/{cmd.name}"
+            else:
+                cmd_path = cmd.name
+
+            if cmd_path in included_paths:
+                filtered_commands.append(cmd)
+
+        # Filter subgroups
+        filtered_subgroups: list[CommandGroup] = []
+        for subgroup in group.subgroups:
+            if prefix:
+                subgroup_path = f"{prefix}/{subgroup.name}"
+            else:
+                subgroup_path = subgroup.name
+
+            # Check if this subgroup has any included commands
+            subgroup_included = self._build_filtered_tree(
+                subgroup, included_paths, subgroup_path
+            )
+            # Only include subgroup if it has commands or subgroups
+            if subgroup_included.commands or subgroup_included.subgroups:
+                filtered_subgroups.append(subgroup_included)
+
+        return CommandGroup(
+            name=group.name,
+            path=group.path,
+            description=group.description,
+            commands=filtered_commands,
             subgroups=filtered_subgroups,
         )

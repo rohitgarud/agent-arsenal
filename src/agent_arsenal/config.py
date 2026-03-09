@@ -8,7 +8,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from agent_arsenal.sandbox import SandboxConfig, SandboxPermissions
 
@@ -407,3 +407,123 @@ def get_sandbox_permissions_for_command(
         allow_env=cmd_perms_data.get("allow_env", perms.allow_env),
         allow_run=cmd_perms_data.get("allow_run", perms.allow_run),
     )
+
+
+# =============================================================================
+# Command Filter Configuration Functions
+# =============================================================================
+
+# Type alias for command filter configuration
+CommandFilterConfig = dict[str, list[str]]  # {"include": [...], "exclude": [...]}
+
+
+def load_command_filter() -> CommandFilterConfig:
+    """Load include/exclude command filter lists from config.
+
+    If the config file doesn't exist or is invalid, returns default config
+    with empty include and exclude lists.
+
+    Returns:
+        Dictionary with "include" and "exclude" keys, each containing a list of patterns
+    """
+    config = load_config()
+
+    # Get commands section, default to empty include/exclude
+    commands_data = config.get("commands", {})
+
+    # Ensure include and exclude are lists
+    include = commands_data.get("include", [])
+    exclude = commands_data.get("exclude", [])
+
+    if not isinstance(include, list):
+        logger.warning("Invalid include format in config. Using default.")
+        include = []
+
+    if not isinstance(exclude, list):
+        logger.warning("Invalid exclude format in config. Using default.")
+        exclude = []
+
+    return {
+        "include": include,
+        "exclude": exclude,
+    }
+
+
+def save_command_filter(filter_config: CommandFilterConfig) -> None:
+    """Save include/exclude command filter lists to config.
+
+    Creates the ~/.arsenal directory if it doesn't exist.
+
+    Args:
+        filter_config: Dictionary with "include" and "exclude" lists
+
+    Raises:
+        PermissionError: If the config file cannot be written
+    """
+    _ensure_config_dir()
+
+    # Load existing config to preserve other settings
+    existing_config = load_config()
+
+    # Merge command filter config
+    existing_config["commands"] = {
+        "include": filter_config.get("include", []),
+        "exclude": filter_config.get("exclude", []),
+    }
+
+    save_config(existing_config)
+    logger.info("Saved command filter config: include=%s, exclude=%s",
+               filter_config.get("include", []), filter_config.get("exclude", []))
+
+
+def update_command_filter(
+    filter_type: Literal["include", "exclude"],
+    action: Literal["set", "add", "remove", "clear"],
+    patterns: list[str] | None = None,
+) -> CommandFilterConfig:
+    """Update include or exclude command filter list.
+
+    Args:
+        filter_type: "include" or "exclude"
+        action: "set" (replace), "add" (append), "remove" (delete), "clear" (empty)
+        patterns: List of patterns for set/add/remove actions
+
+    Returns:
+        Updated filter config
+
+    Raises:
+        ValueError: If filter_type or action is invalid
+    """
+    if filter_type not in ("include", "exclude"):
+        raise ValueError(f"Invalid filter_type: {filter_type}. Must be 'include' or 'exclude'.")
+
+    if action not in ("set", "add", "remove", "clear"):
+        raise ValueError(f"Invalid action: {action}. Must be 'set', 'add', 'remove', or 'clear'.")
+
+    # Load current config
+    current_config = load_command_filter()
+
+    # Get current list for the filter type
+    current_list = current_config.get(filter_type, []).copy()
+
+    if action == "clear":
+        current_list = []
+    elif action == "set":
+        current_list = list(patterns) if patterns else []
+    elif action == "add":
+        if patterns:
+            # Add only new patterns (avoid duplicates)
+            for pattern in patterns:
+                if pattern not in current_list:
+                    current_list.append(pattern)
+    elif action == "remove":
+        if patterns:
+            current_list = [p for p in current_list if p not in patterns]
+
+    # Update config
+    current_config[filter_type] = current_list
+
+    # Save
+    save_command_filter(current_config)
+
+    return current_config
