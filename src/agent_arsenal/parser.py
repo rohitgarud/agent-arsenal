@@ -245,7 +245,9 @@ def validate_frontmatter(frontmatter: dict[str, Any]) -> dict[str, Any]:
                     errors.append(f"subcommands[{i}]: 'name' must be a string")
 
                 # Validate description is a string if present
-                if "description" in subcmd and not isinstance(subcmd["description"], str):
+                if "description" in subcmd and not isinstance(
+                    subcmd["description"], str
+                ):
                     errors.append(f"subcommands[{i}]: 'description' must be a string")
 
     if errors:

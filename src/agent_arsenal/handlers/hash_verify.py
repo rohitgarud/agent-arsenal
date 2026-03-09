@@ -1,4 +1,5 @@
 """Hash verification handler."""
+
 import hashlib
 
 

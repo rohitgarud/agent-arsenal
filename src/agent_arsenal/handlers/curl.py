@@ -1,9 +1,12 @@
 """HTTP request handler."""
+
 import json
 from urllib import error, request
 
 
-def http_request(url: str, method: str = "GET", data: str = "", headers: str = "") -> str:
+def http_request(
+    url: str, method: str = "GET", data: str = "", headers: str = ""
+) -> str:
     """Make HTTP request.
 
     Args:

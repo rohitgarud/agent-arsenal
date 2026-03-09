@@ -1,4 +1,5 @@
 """Password generator handler."""
+
 import secrets
 import string
 

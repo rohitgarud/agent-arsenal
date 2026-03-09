@@ -1,4 +1,5 @@
 """DNS lookup handler."""
+
 import socket
 
 
@@ -33,7 +34,9 @@ def dns_lookup(domain: str, record_type: str = "A") -> str:
             # Direct lookup for A/AAAA records
             results = socket.getaddrinfo(domain, None, record_type_map[record_type])
             unique_ips = list({r[4][0] for r in results})
-            return f"{record_type} records for {domain}:\n" + "\n".join(f"  - {ip}" for ip in unique_ips)
+            return f"{record_type} records for {domain}:\n" + "\n".join(
+                f"  - {ip}" for ip in unique_ips
+            )
         else:
             # Use socket.gethostbyname_ex for other types (simplified)
             try:

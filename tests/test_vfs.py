@@ -1,7 +1,8 @@
 """Unit tests for VFS (Virtual File System)."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from agent_arsenal.vfs import VFSManager
 
@@ -173,7 +174,9 @@ class TestMetadata:
 class TestStats:
     """Tests for statistics."""
 
-    def test_get_stats_returns_correct_info(self, vfs: VFSManager, tmp_path: Path) -> None:
+    def test_get_stats_returns_correct_info(
+        self, vfs: VFSManager, tmp_path: Path
+    ) -> None:
         """Verify get_stats returns correct file count and db info."""
         vfs.write("/stats1.txt", "Content1")
         vfs.write("/stats2.txt", "Content2")

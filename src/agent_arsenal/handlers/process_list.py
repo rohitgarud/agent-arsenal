@@ -42,7 +42,10 @@ def handle_process_list(limit: int = 10, user: str = "") -> str:
                 if user:
                     try:
                         import pwd
-                        proc_info["username"] = pwd.getpwuid(int(proc_info["uid"])).pw_name
+
+                        proc_info["username"] = pwd.getpwuid(
+                            int(proc_info["uid"])
+                        ).pw_name
                     except (ImportError, KeyError):
                         proc_info["username"] = proc_info["uid"]
 
@@ -51,7 +54,10 @@ def handle_process_list(limit: int = 10, user: str = "") -> str:
                 else:
                     try:
                         import pwd
-                        proc_info["username"] = pwd.getpwuid(int(proc_info["uid"])).pw_name
+
+                        proc_info["username"] = pwd.getpwuid(
+                            int(proc_info["uid"])
+                        ).pw_name
                     except (ImportError, KeyError):
                         proc_info["username"] = proc_info["uid"]
 

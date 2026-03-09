@@ -482,8 +482,11 @@ def save_command_filter(filter_config: CommandFilterConfig) -> None:
     }
 
     save_config(existing_config)
-    logger.info("Saved command filter config: include=%s, exclude=%s",
-               filter_config.get("include", []), filter_config.get("exclude", []))
+    logger.info(
+        "Saved command filter config: include=%s, exclude=%s",
+        filter_config.get("include", []),
+        filter_config.get("exclude", []),
+    )
 
 
 def update_command_filter(
@@ -505,10 +508,14 @@ def update_command_filter(
         ValueError: If filter_type or action is invalid
     """
     if filter_type not in ("include", "exclude"):
-        raise ValueError(f"Invalid filter_type: {filter_type}. Must be 'include' or 'exclude'.")
+        raise ValueError(
+            f"Invalid filter_type: {filter_type}. Must be 'include' or 'exclude'."
+        )
 
     if action not in ("set", "add", "remove", "clear"):
-        raise ValueError(f"Invalid action: {action}. Must be 'set', 'add', 'remove', or 'clear'.")
+        raise ValueError(
+            f"Invalid action: {action}. Must be 'set', 'add', 'remove', or 'clear'."
+        )
 
     # Load current config
     current_config = load_command_filter()

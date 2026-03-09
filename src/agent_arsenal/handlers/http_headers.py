@@ -1,4 +1,5 @@
 """HTTP headers handler."""
+
 from urllib import error, request
 
 
@@ -22,6 +23,7 @@ def get_headers(url: str, follow_redirects: bool = True) -> str:
         # Handle redirects
         if not follow_redirects:
             import ssl
+
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE

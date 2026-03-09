@@ -218,9 +218,13 @@ def list_commands_cli(
                     pass
 
                 if cmd_desc:
-                    console.print(f"{child_prefix}{cmd_connector}[cyan]{cmd.name}[/cyan]  {cmd_desc}")
+                    console.print(
+                        f"{child_prefix}{cmd_connector}[cyan]{cmd.name}[/cyan]  {cmd_desc}"
+                    )
                 else:
-                    console.print(f"{child_prefix}{cmd_connector}[cyan]{cmd.name}[/cyan]")
+                    console.print(
+                        f"{child_prefix}{cmd_connector}[cyan]{cmd.name}[/cyan]"
+                    )
 
             # Print subgroups
             for i, sg in enumerate(g.subgroups):
@@ -232,7 +236,9 @@ def list_commands_cli(
         print_tree(command_tree)
 
         # Print summary
-        console.print(f"\n[dim]Total: {total_commands} commands, {total_groups} groups[/dim]")
+        console.print(
+            f"\n[dim]Total: {total_commands} commands, {total_groups} groups[/dim]"
+        )
 
 
 # External directories subcommand group under config
@@ -362,6 +368,7 @@ def commands_show():
 
     # Print tree if there are visible commands
     if visible_count > 0:
+
         def print_tree(g, prefix="", is_last=True):
             connector = "└── " if is_last else "├── "
 
@@ -560,7 +567,9 @@ def sandbox_disable():
 
 
 @sandbox_app.command("set-backend")
-def sandbox_set_backend(backend: str = typer.Argument(..., help="Backend to use: deno, llm-sandbox")):
+def sandbox_set_backend(
+    backend: str = typer.Argument(..., help="Backend to use: deno, llm-sandbox"),
+):
     """Set sandbox backend."""
     valid_backends = ["deno", "llm-sandbox"]
     if backend not in valid_backends:
@@ -574,7 +583,9 @@ def sandbox_set_backend(backend: str = typer.Argument(..., help="Backend to use:
 
     console.print(f"[green]Sandbox backend set to: {backend}[/green]")
     if backend == "llm-sandbox":
-        console.print("[yellow]Note: llm-sandbox requires Docker to be running.[/yellow]")
+        console.print(
+            "[yellow]Note: llm-sandbox requires Docker to be running.[/yellow]"
+        )
         console.print("To switch back to Deno: arsenal config sandbox set-backend deno")
 
 
@@ -771,7 +782,9 @@ def _create_subcommand_func(
     from agent_arsenal.parser import parse_markdown_command
 
     frontmatter, _ = parse_markdown_command(cmd.path)
-    description = frontmatter.get("description", f"Execute {cmd.name} {subcommand_name}")
+    description = frontmatter.get(
+        "description", f"Execute {cmd.name} {subcommand_name}"
+    )
 
     # Create a wrapper that injects subcommand into args
     if not args_def:

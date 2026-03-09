@@ -1,4 +1,5 @@
 """Relative time handler."""
+
 from datetime import datetime, timedelta
 
 

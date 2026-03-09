@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import time
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -371,10 +369,7 @@ class TestCacheManager:
 
         # Try to cache error result with metadata
         result = CommandResult(
-            success=False,
-            output="",
-            error="Some error",
-            metadata={"error_code": 500}
+            success=False, output="", error="Some error", metadata={"error_code": 500}
         )
         key = cache_manager.generate_key(command_path, {})
         cache_manager.set(key, result, command_path=command_path)
@@ -482,7 +477,7 @@ class TestCacheManager:
         result = CommandResult(
             success=True,
             output="test output",
-            metadata={"execution_time": 1.5, "cache_hit": False}
+            metadata={"execution_time": 1.5, "cache_hit": False},
         )
         key = cache_manager.generate_key(command_path, {})
 

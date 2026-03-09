@@ -194,7 +194,9 @@ class CommandExecutor:
 
             if not sandbox_config.enabled:
                 # Sandbox disabled globally - execute directly
-                result = self._execute_direct(command_obj, args, exec_type, handler_info)
+                result = self._execute_direct(
+                    command_obj, args, exec_type, handler_info
+                )
                 self._print_verbose(f"Result: {result.output}")
                 return result
 

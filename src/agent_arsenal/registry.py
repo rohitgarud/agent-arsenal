@@ -363,7 +363,9 @@ class CommandRegistry:
                 # Then check if the pattern without the glob suffix matches as a group
                 # e.g., "api/*" -> "api" should match group "api"
                 prefix = pattern.rstrip("*").rstrip("/")
-                if prefix and (command_path == prefix or command_path.startswith(prefix + "/")):
+                if prefix and (
+                    command_path == prefix or command_path.startswith(prefix + "/")
+                ):
                     return True
 
         return False

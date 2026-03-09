@@ -1,4 +1,5 @@
 """Epoch converter handler."""
+
 from datetime import UTC, datetime
 
 
@@ -68,7 +69,6 @@ def convert_from_epoch(epoch_str: str, tz: str) -> str:
     elif tz == "UTC":
         dt = datetime.fromtimestamp(epoch, tz=UTC)
     else:
-
         # Try to get timezone offset (simplified)
         dt = datetime.fromtimestamp(epoch, tz=UTC)
         return dt.strftime("%Y-%m-%d %H:%M:%S UTC")

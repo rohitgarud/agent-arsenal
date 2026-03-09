@@ -108,7 +108,9 @@ class VFSManager:
         )
         conn.commit()
 
-    def write(self, path: str, content: str, metadata: dict[str, Any] | None = None) -> None:
+    def write(
+        self, path: str, content: str, metadata: dict[str, Any] | None = None
+    ) -> None:
         """Write content to a virtual file.
 
         Args:
@@ -218,7 +220,9 @@ class VFSManager:
         with self._local_lock:
             conn = self._ensure_connection()
             # Ensure prefix ends with % for LIKE matching
-            search_prefix = prefix if prefix.endswith("%") or prefix.endswith("/") else prefix + "/"
+            search_prefix = (
+                prefix if prefix.endswith("%") or prefix.endswith("/") else prefix + "/"
+            )
             if not search_prefix.startswith("/"):
                 search_prefix = "/" + search_prefix
             search_prefix = search_prefix.rstrip("/") + "/%"
