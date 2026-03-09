@@ -4,6 +4,7 @@ This module provides the core data classes and executor for running commands
 within a Deno-based sandbox with configurable permissions.
 """
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,7 @@ class SandboxConfig:
 
     enabled: bool = True
     timeout_seconds: int = 30
+    backend: str = "deno"
     default_permissions: SandboxPermissions = field(default_factory=SandboxPermissions)
 
 
@@ -43,11 +45,36 @@ class CommandResult:
             self.metadata = {}
 
 
-class DenoSandboxExecutor:
-    """Executes commands within Deno sandbox."""
+class SandboxBackend(ABC):
+    """Abstract base class for sandbox backends."""
 
     def __init__(self, config: SandboxConfig) -> None:
         self.config = config
+
+    @abstractmethod
+    def execute(
+        self,
+        execution_type: str,
+        script: str,
+        permissions: SandboxPermissions | None = None,
+        timeout: int | None = None,
+    ) -> CommandResult:
+        """Execute a script in the sandbox based on execution type."""
+
+    @abstractmethod
+    def check_available(self) -> bool:
+        """Check if the backend is available on this system."""
+
+    @abstractmethod
+    def get_backend_name(self) -> str:
+        """Get the name of this backend."""
+
+
+class DenoSandbox(SandboxBackend):
+    """Executes commands within Deno sandbox."""
+
+    def __init__(self, config: SandboxConfig) -> None:
+        super().__init__(config)
         # Common Deno installation paths to check (instance attribute for testability)
         self._deno_paths = [
             Path.home() / ".deno" / "bin" / "deno",
@@ -56,6 +83,14 @@ class DenoSandboxExecutor:
             Path.home() / "bin" / "deno",
         ]
         self._deno_path = self._detect_deno()
+
+    def get_backend_name(self) -> str:
+        """Get the name of this backend."""
+        return "deno"
+
+    def check_available(self) -> bool:
+        """Check if the backend is available on this system."""
+        return self._check_deno_available()
 
     def _detect_deno(self) -> Path | None:
         """Detect Deno installation path."""
@@ -349,3 +384,105 @@ console.log(String(result));
                 output="",
                 error=f"Unsupported execution type: {execution_type}",
             )
+
+
+# Backward compatibility alias
+DenoSandboxExecutor = DenoSandbox
+
+
+class LLMSandbox(SandboxBackend):
+    """llm-sandbox container-based sandbox."""
+
+    def __init__(self, config: SandboxConfig) -> None:
+        super().__init__(config)
+        self._docker_available: bool | None = None
+
+    def get_backend_name(self) -> str:
+        """Get the name of this backend."""
+        return "llm-sandbox"
+
+    def check_available(self) -> bool:
+        """Check if the backend is available on this system (Docker running)."""
+        import subprocess
+
+        try:
+            result = subprocess.run(
+                ["docker", "info"],
+                capture_output=True,
+                timeout=5,
+            )
+            self._docker_available = result.returncode == 0
+        except Exception:
+            self._docker_available = False
+        return self._docker_available
+
+    def _map_execution_type(self, execution_type: str) -> str:
+        """Map execution type to llm-sandbox language identifier."""
+        mapping = {"python": "python", "node": "javascript", "javascript": "javascript"}
+        return mapping.get(execution_type, "python")
+
+    def execute(
+        self,
+        execution_type: str,
+        script: str,
+        permissions: SandboxPermissions | None = None,
+        timeout: int | None = None,
+    ) -> CommandResult:
+        """Execute a script in the llm-sandbox container."""
+        if permissions is None:
+            permissions = self.config.default_permissions
+        if timeout is None:
+            timeout = self.config.timeout_seconds
+
+        # Lazy import to avoid errors when llm-sandbox not installed
+        try:
+            from llm_sandbox import SandboxSession
+        except ImportError:
+            return CommandResult(
+                success=False,
+                output="",
+                error="llm-sandbox is not installed. Install with: pip install 'llm-sandbox[docker]'",
+                metadata={"executor": "llm-sandbox", "import_error": True},
+            )
+
+        if not self.check_available():
+            return CommandResult(
+                success=False,
+                output="",
+                error="Docker is not running. Please start Docker and try again.",
+                metadata={"executor": "llm-sandbox", "docker_unavailable": True},
+            )
+
+        lang = self._map_execution_type(execution_type)
+
+        try:
+            with SandboxSession(lang=lang) as session:
+                result = session.run(script)
+
+            return CommandResult(
+                success=result.exit_code == 0,
+                output=result.stdout or "",
+                error=result.stderr if result.exit_code != 0 else None,
+                metadata={
+                    "executor": "llm-sandbox",
+                    "exit_code": result.exit_code,
+                    "lang": lang,
+                },
+            )
+        except Exception as e:
+            return CommandResult(
+                success=False,
+                output="",
+                error=str(e),
+                metadata={"executor": "llm-sandbox", "exception": True},
+            )
+
+
+def get_sandbox_backend(config: SandboxConfig) -> SandboxBackend:
+    """Factory function to create a sandbox backend based on configuration."""
+    if config.backend == "llm-sandbox":
+        return LLMSandbox(config)
+    elif config.backend == "deno":
+        return DenoSandbox(config)
+    else:
+        raise ValueError(f"Unknown sandbox backend: {config.backend}")

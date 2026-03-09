@@ -301,19 +301,27 @@ def load_sandbox_config() -> SandboxConfig:
         allow_run=perms_data.get("allow_run", False),
     )
 
-    # Check Deno availability - if not available, warn and disable
-    from agent_arsenal.sandbox import DenoSandboxExecutor
+    # Parse backend
+    backend = sandbox_data.get("backend", "deno")
+    # Validate backend
+    if backend not in ("deno", "llm-sandbox"):
+        backend = "deno"  # Fall back to default
+
+    # Check backend availability - if not available, warn and disable
+    from agent_arsenal.sandbox import get_sandbox_backend
 
     temp_config = SandboxConfig(
         enabled=enabled,
         timeout_seconds=timeout_seconds,
         default_permissions=default_permissions,
+        backend=backend,
     )
-    executor = DenoSandboxExecutor(temp_config)
-    if not executor._check_deno_available():
+    executor = get_sandbox_backend(temp_config)
+    if not executor.check_available():
         logger.warning(
-            "Deno is not installed. Sandbox will be disabled. "
-            "Install via: curl -fsSL https://deno.land/x/install/install.sh | sh"
+            f"{executor.get_backend_name().title()} is not installed. Sandbox will be disabled. "
+            "Install via: curl -fsSL https://deno.land/x/install/install.sh | sh (for Deno) "
+            "or pip install 'llm-sandbox[docker]' (for llm-sandbox)"
         )
         return SandboxConfig(enabled=False)
 
@@ -321,6 +329,7 @@ def load_sandbox_config() -> SandboxConfig:
         enabled=enabled,
         timeout_seconds=timeout_seconds,
         default_permissions=default_permissions,
+        backend=backend,
     )
 
 
@@ -353,6 +362,7 @@ def save_sandbox_config(config: SandboxConfig) -> None:
 
     sandbox_data: dict[str, Any] = {
         "enabled": config.enabled,
+        "backend": config.backend,
         "timeout_seconds": config.timeout_seconds,
         "default_permissions": {
             "allow_read": perms.allow_read,

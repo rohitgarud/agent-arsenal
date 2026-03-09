@@ -13,6 +13,9 @@ dependencies = [
     "jinja2>=3.0.0",
 ]
 
+[project.optional-dependencies]
+docker = ["llm-sandbox[docker]"]
+
 [project.scripts]
 arsenal = "agent_arsenal.main:cli"
 
@@ -37,6 +40,7 @@ dev = [
     "mypy>=1.0.0", # Type checker
     "ruff", # Linter
     "bandit", # Security linter
+    "llm-sandbox[docker]", # For llm-sandbox backend testing
 ]
 
 [tool.mypy]

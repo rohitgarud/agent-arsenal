@@ -17,8 +17,11 @@ from agent_arsenal.config import (
 from agent_arsenal.sandbox import (
     CommandResult,
     DenoSandboxExecutor,
+    LLMSandbox,
+    SandboxBackend,
     SandboxConfig,
     SandboxPermissions,
+    get_sandbox_backend,
 )
 from agent_arsenal.vfs import VFSManager
 
@@ -43,4 +46,7 @@ __all__ = [
     "SandboxPermissions",
     "CommandResult",
     "DenoSandboxExecutor",
+    "SandboxBackend",
+    "LLMSandbox",
+    "get_sandbox_backend",
 ]

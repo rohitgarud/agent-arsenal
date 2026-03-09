@@ -481,6 +481,7 @@ def sandbox_show():
     config = load_sandbox_config()
     console.print("[bold]Sandbox Configuration:[/bold]")
     console.print(f"  Enabled: {config.enabled}")
+    console.print(f"  Backend: {config.backend}")
     console.print(f"  Timeout: {config.timeout_seconds}s")
     console.print("  Default Permissions:")
     perms = config.default_permissions
@@ -556,6 +557,25 @@ def sandbox_disable():
     config.enabled = False
     save_sandbox_config(config)
     console.print("[green]Sandbox disabled[/green]")
+
+
+@sandbox_app.command("set-backend")
+def sandbox_set_backend(backend: str = typer.Argument(..., help="Backend to use: deno, llm-sandbox")):
+    """Set sandbox backend."""
+    valid_backends = ["deno", "llm-sandbox"]
+    if backend not in valid_backends:
+        console.print(f"[red]Invalid backend: {backend}[/red]")
+        console.print(f"Valid options: {', '.join(valid_backends)}")
+        raise typer.Exit(code=1)
+
+    config = load_sandbox_config()
+    config.backend = backend
+    save_sandbox_config(config)
+
+    console.print(f"[green]Sandbox backend set to: {backend}[/green]")
+    if backend == "llm-sandbox":
+        console.print("[yellow]Note: llm-sandbox requires Docker to be running.[/yellow]")
+        console.print("To switch back to Deno: arsenal config sandbox set-backend deno")
 
 
 # State commands

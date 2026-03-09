@@ -351,9 +351,11 @@ class TestLoadSandboxConfig:
             )
         )
 
-        with patch("agent_arsenal.sandbox.DenoSandboxExecutor") as mock_executor:
-            mock_instance = mock_executor.return_value
-            mock_instance._check_deno_available.return_value = False
+        # Mock get_sandbox_backend to return a backend that is not available
+        with patch("agent_arsenal.sandbox.get_sandbox_backend") as mock_factory:
+            mock_backend = mock_factory.return_value
+            mock_backend.check_available.return_value = False
+            mock_backend.get_backend_name.return_value = "deno"
 
             config = load_sandbox_config()
             assert config.enabled is False

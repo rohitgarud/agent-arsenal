@@ -639,8 +639,8 @@ sandbox: true
         result = executor.execute(cmd, {})
 
         assert not result.success
-        assert "Deno is not installed" in result.error
-        assert "curl -fsSL https://deno.land" in result.error
+        # New multi-backend error message
+        assert "is not available" in result.error
 
 
 class TestExecuteEdgeCases:

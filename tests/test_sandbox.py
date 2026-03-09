@@ -7,9 +7,13 @@ import pytest
 
 from agent_arsenal.sandbox import (
     CommandResult,
+    DenoSandbox,
     DenoSandboxExecutor,
+    LLMSandbox,
+    SandboxBackend,
     SandboxConfig,
     SandboxPermissions,
+    get_sandbox_backend,
 )
 
 
@@ -291,3 +295,113 @@ class TestDenoSandboxExecutorMissing:
         # This would timeout if we had a real script
         # Just verify the timeout is set correctly
         assert executor.config.timeout_seconds == 1
+
+
+class TestSandboxBackend:
+    """Tests for sandbox backend classes and factory."""
+
+    def test_factory_creates_deno(self):
+        """Test factory creates DenoSandbox for backend='deno'."""
+        config = SandboxConfig(backend="deno")
+        backend = get_sandbox_backend(config)
+        assert isinstance(backend, DenoSandbox)
+        assert backend.get_backend_name() == "deno"
+
+    def test_factory_creates_llm_sandbox(self):
+        """Test factory creates LLMSandbox for backend='llm-sandbox'."""
+        config = SandboxConfig(backend="llm-sandbox")
+        backend = get_sandbox_backend(config)
+        assert isinstance(backend, LLMSandbox)
+        assert backend.get_backend_name() == "llm-sandbox"
+
+    def test_factory_raises_on_unknown(self):
+        """Test factory raises ValueError for unknown backend."""
+        config = SandboxConfig(backend="unknown")
+        with pytest.raises(ValueError, match="Unknown sandbox backend"):
+            get_sandbox_backend(config)
+
+    def test_deno_sandbox_inherits_from_backend(self):
+        """Test DenoSandbox inherits from SandboxBackend."""
+        assert issubclass(DenoSandbox, SandboxBackend)
+
+    def test_llm_sandbox_inherits_from_backend(self):
+        """Test LLMSandbox inherits from SandboxBackend."""
+        assert issubclass(LLMSandbox, SandboxBackend)
+
+    def test_deno_sandbox_check_available(self):
+        """Test DenoSandbox.check_available calls internal check."""
+        config = SandboxConfig()
+        sandbox = DenoSandbox(config)
+        # With mocking, we can test the method exists and is callable
+        assert callable(sandbox.check_available)
+
+    def test_llm_sandbox_get_backend_name(self):
+        """Test LLMSandbox.get_backend_name returns correct name."""
+        config = SandboxConfig(backend="llm-sandbox")
+        sandbox = LLMSandbox(config)
+        assert sandbox.get_backend_name() == "llm-sandbox"
+
+    def test_llm_sandbox_map_execution_type(self):
+        """Test LLMSandbox._map_execution_type mappings."""
+        config = SandboxConfig(backend="llm-sandbox")
+        sandbox = LLMSandbox(config)
+
+        assert sandbox._map_execution_type("python") == "python"
+        assert sandbox._map_execution_type("node") == "javascript"
+        assert sandbox._map_execution_type("javascript") == "javascript"
+        # Default to python for unknown types
+        assert sandbox._map_execution_type("unknown") == "python"
+
+    @patch("subprocess.run")
+    def test_llm_sandbox_check_available_docker_running(self, mock_run):
+        """Test LLMSandbox.check_available returns True when Docker is running."""
+        mock_run.return_value = type("Result", (), {"returncode": 0})()
+
+        config = SandboxConfig(backend="llm-sandbox")
+        sandbox = LLMSandbox(config)
+
+        result = sandbox.check_available()
+        assert result is True
+        mock_run.assert_called_once_with(
+            ["docker", "info"], capture_output=True, timeout=5
+        )
+
+    @patch("subprocess.run")
+    def test_llm_sandbox_check_available_docker_not_running(self, mock_run):
+        """Test LLMSandbox.check_available returns False when Docker is not running."""
+        mock_run.return_value = type("Result", (), {"returncode": 1})()
+
+        config = SandboxConfig(backend="llm-sandbox")
+        sandbox = LLMSandbox(config)
+
+        result = sandbox.check_available()
+        assert result is False
+
+    @patch("subprocess.run")
+    def test_llm_sandbox_check_available_exception(self, mock_run):
+        """Test LLMSandbox.check_available returns False on exception."""
+        mock_run.side_effect = Exception("Docker not found")
+
+        config = SandboxConfig(backend="llm-sandbox")
+        sandbox = LLMSandbox(config)
+
+        result = sandbox.check_available()
+        assert result is False
+
+    def test_deno_sandbox_executor_alias(self):
+        """Test DenoSandboxExecutor is an alias for DenoSandbox."""
+        assert DenoSandboxExecutor is DenoSandbox
+
+
+class TestSandboxConfigBackend:
+    """Tests for SandboxConfig backend field."""
+
+    def test_default_backend_is_deno(self):
+        """Test default backend is 'deno'."""
+        config = SandboxConfig()
+        assert config.backend == "deno"
+
+    def test_custom_backend(self):
+        """Test SandboxConfig accepts custom backend."""
+        config = SandboxConfig(backend="llm-sandbox")
+        assert config.backend == "llm-sandbox"

@@ -24,8 +24,8 @@ from agent_arsenal.config import (
     load_sandbox_config,
 )
 from agent_arsenal.sandbox import (
-    DenoSandboxExecutor,
     SandboxConfig,
+    get_sandbox_backend,
 )
 
 # Module-level verbose mode flag
@@ -200,13 +200,13 @@ class CommandExecutor:
 
             permissions = get_sandbox_permissions_for_command(fm, sandbox_config)
 
-            # Check Deno availability
-            sandbox_exec = DenoSandboxExecutor(sandbox_config)
-            if not sandbox_exec._check_deno_available():
+            # Check backend availability
+            sandbox_exec = get_sandbox_backend(sandbox_config)
+            if not sandbox_exec.check_available():
                 result = CommandResult(
                     success=False,
                     output="",
-                    error="Deno is not installed. Install via: curl -fsSL https://deno.land/x/install/install.sh | sh",
+                    error=f"{sandbox_exec.get_backend_name().title()} is not available. Please ensure it is installed and running.",
                 )
                 self._print_verbose(f"Result: {result.output}")
                 return result
