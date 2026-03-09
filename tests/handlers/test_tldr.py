@@ -144,3 +144,32 @@ class TestTldrHandler:
                 result = handle_tldr("docker")
                 assert "Error running tldr" in result
                 assert "Something went wrong" in result
+
+    def test_handle_tldr_strips_ansi_codes(self):
+        """Test handle_tldr strips ANSI escape codes from output."""
+        with patch("agent_arsenal.handlers.tldr.get_tldr_client") as mock_client:
+            mock_client.return_value = "tldr"
+            with patch("agent_arsenal.handlers.tldr.subprocess.run") as mock_run:
+                mock_run.return_value = subprocess.CompletedProcess(
+                    args=["tldr", "docker"],
+                    returncode=0,
+                    stdout="\x1b[32mdocker\x1b[0m help content",
+                    stderr="",
+                )
+                result = handle_tldr("docker")
+                assert result == "docker help content"
+
+    def test_handle_tldr_strips_ansi_codes_from_error(self):
+        """Test handle_tldr strips ANSI escape codes from error output."""
+        with patch("agent_arsenal.handlers.tldr.get_tldr_client") as mock_client:
+            mock_client.return_value = "tldr"
+            with patch("agent_arsenal.handlers.tldr.subprocess.run") as mock_run:
+                mock_run.return_value = subprocess.CompletedProcess(
+                    args=["tldr", "docker"],
+                    returncode=1,
+                    stdout="",
+                    stderr="\x1b[31mSome error\x1b[0m",
+                )
+                result = handle_tldr("docker")
+                assert "Some error" in result
+                assert "\x1b" not in result

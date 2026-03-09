@@ -3,6 +3,8 @@
 import shutil
 import subprocess
 
+from agent_arsenal.utils.ansi import strip_ansi
+
 _TLDR_CLIENTS: list[str] = ["tldr", "tlrc"]
 _DEFAULT_TIMEOUT: int = 30
 
@@ -74,11 +76,11 @@ def handle_tldr(command: str) -> str:
         )
 
         if result.returncode == 0:
-            return result.stdout
+            return strip_ansi(result.stdout)
         elif result.returncode == 127:
             return f"Command '{command}' not found in tldr pages."
         else:
-            return f"Error: {result.stderr.strip()}"
+            return f"Error: {strip_ansi(result.stderr.strip())}"
 
     except subprocess.TimeoutExpired:
         return f"Error: tldr command timed out after {_DEFAULT_TIMEOUT} seconds."
