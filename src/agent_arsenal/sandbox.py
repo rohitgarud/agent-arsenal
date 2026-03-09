@@ -478,11 +478,131 @@ class LLMSandbox(SandboxBackend):
             )
 
 
+class MontySandbox(SandboxBackend):
+    """Sandbox backend using pydantic-monty for secure Python execution."""
+
+    def __init__(self, config: SandboxConfig) -> None:
+        super().__init__(config)
+
+    def get_backend_name(self) -> str:
+        return "monty"
+
+    def check_available(self) -> bool:
+        try:
+            import pydantic_monty  # noqa: F401
+
+            return True
+        except ImportError:
+            return False
+
+    def execute(
+        self,
+        execution_type: str,
+        script: str,
+        permissions: SandboxPermissions | None = None,
+        timeout: int | None = None,
+    ) -> CommandResult:
+        """Execute Python code in Monty sandbox."""
+        # Step 1: Validate execution_type
+        if execution_type != "python":
+            return CommandResult(
+                success=False,
+                output="",
+                error=f"MontySandbox only supports execution_type='python', got '{execution_type}'",
+                metadata={"executor": "monty", "error_type": "unsupported_type"},
+            )
+
+        # Step 2: Lazy import Monty components
+        try:
+            from pydantic_monty import (
+                Monty,
+                MontyError,
+                MontyRuntimeError,
+                MontySyntaxError,
+                ResourceLimits,
+            )
+        except ImportError:
+            return CommandResult(
+                success=False,
+                output="",
+                error="pydantic-monty is not installed. Install with: pip install pydantic-monty",
+                metadata={"executor": "monty", "import_error": True},
+            )
+
+        # Step 3: Resolve timeout
+        effective_timeout = (
+            timeout if timeout is not None else self.config.timeout_seconds
+        )
+
+        # Step 4: Build ResourceLimits
+        limits = ResourceLimits(max_duration_secs=effective_timeout)
+
+        # Step 5: Build output capture callback
+        output_parts: list[str] = []
+
+        def _capture_output(stream: str, text: str) -> None:
+            output_parts.append(text)
+
+        # Step 6: Execute the script
+        try:
+            monty = Monty(script)
+            result = monty.run(print_callback=_capture_output, limits=limits)
+        except Exception as e:
+            # Collect any partial output
+            partial_output = "".join(output_parts)
+
+            # Step 8: Handle exceptions
+            if isinstance(e, MontySyntaxError):
+                return CommandResult(
+                    success=False,
+                    output=partial_output,
+                    error=str(e),
+                    metadata={"executor": "monty", "error_type": "syntax"},
+                )
+            elif isinstance(e, MontyRuntimeError):
+                metadata: dict = {"executor": "monty", "error_type": "runtime"}
+                if "TimeoutError" in str(e) and "time limit" in str(e):
+                    metadata["timeout"] = True
+                return CommandResult(
+                    success=False,
+                    output=partial_output,
+                    error=str(e),
+                    metadata=metadata,
+                )
+            elif isinstance(e, MontyError):
+                return CommandResult(
+                    success=False,
+                    output=partial_output,
+                    error=str(e),
+                    metadata={"executor": "monty", "error_type": "monty"},
+                )
+            else:
+                return CommandResult(
+                    success=False,
+                    output=partial_output,
+                    error=str(e),
+                    metadata={"executor": "monty", "error_type": "unexpected"},
+                )
+
+        # Step 7: Success handling
+        output = "".join(output_parts)
+        if result is not None and output.strip() == "":
+            output = str(result)
+
+        return CommandResult(
+            success=True,
+            output=output,
+            metadata={"executor": "monty"},
+        )
+
+
 def get_sandbox_backend(config: SandboxConfig) -> SandboxBackend:
     """Factory function to create a sandbox backend based on configuration."""
     if config.backend == "llm-sandbox":
         return LLMSandbox(config)
     elif config.backend == "deno":
         return DenoSandbox(config)
+    elif config.backend == "monty":
+        return MontySandbox(config)
     else:
         raise ValueError(f"Unknown sandbox backend: {config.backend}")

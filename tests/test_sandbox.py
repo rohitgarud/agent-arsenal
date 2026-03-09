@@ -10,6 +10,7 @@ from agent_arsenal.sandbox import (
     DenoSandbox,
     DenoSandboxExecutor,
     LLMSandbox,
+    MontySandbox,
     SandboxBackend,
     SandboxConfig,
     SandboxPermissions,
@@ -405,3 +406,175 @@ class TestSandboxConfigBackend:
         """Test SandboxConfig accepts custom backend."""
         config = SandboxConfig(backend="llm-sandbox")
         assert config.backend == "llm-sandbox"
+
+
+class TestMontySandbox:
+    """Tests for MontySandbox class (unit tests, mocked where needed)."""
+
+    def test_get_backend_name(self):
+        """Test get_backend_name returns 'monty'."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+        assert sandbox.get_backend_name() == "monty"
+
+    def test_inherits_from_sandbox_backend(self):
+        """Test MontySandbox inherits from SandboxBackend."""
+        assert issubclass(MontySandbox, SandboxBackend)
+
+    def test_check_available_when_installed(self):
+        """Test check_available returns True when pydantic-monty is installed."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+        # pydantic-monty is installed in dev env, should return True
+        assert sandbox.check_available() is True
+
+    def test_check_available_when_not_installed(self):
+        """Test check_available returns False when pydantic-monty is not installed."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        with patch("builtins.__import__") as mock_import:
+            mock_import.side_effect = ImportError("No module named 'pydantic_monty'")
+            result = sandbox.check_available()
+            assert result is False
+
+    def test_execute_unsupported_type_bash(self):
+        """Test execute with 'bash' returns error."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("bash", "echo hi")
+        assert result.success is False
+        assert "only supports" in result.error
+
+    def test_execute_unsupported_type_node(self):
+        """Test execute with 'node' returns error."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("node", "console.log('hi')")
+        assert result.success is False
+        assert "only supports" in result.error
+
+    def test_execute_import_error(self):
+        """Test execute returns error when pydantic-monty import fails."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        with patch("builtins.__import__") as mock_import:
+            mock_import.side_effect = ImportError("No module named 'pydantic_monty'")
+            result = sandbox.execute("python", "print('test')")
+            assert result.success is False
+            assert result.metadata.get("import_error") is True
+
+
+class TestMontySandboxExecution:
+    """Tests for MontySandbox execution (integration tests, requires pydantic-monty)."""
+
+    def test_execute_simple_print(self):
+        """Test simple print statement."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("python", "print('hello world')")
+        assert result.success is True
+        assert "hello world" in result.output
+
+    def test_execute_expression_result(self):
+        """Test expression result without print."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("python", "1 + 2")
+        assert result.success is True
+        assert "3" in result.output
+
+    def test_execute_assignment_no_output(self):
+        """Test assignment produces no output."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("python", "x = 42")
+        assert result.success is True
+        assert result.output == ""
+
+    def test_execute_multiline_print(self):
+        """Test multiline script with print."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("python", "x = 10\ny = 20\nprint(x + y)")
+        assert result.success is True
+        assert "30" in result.output
+
+    def test_execute_syntax_error(self):
+        """Test syntax error handling."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("python", "def foo(")
+        assert result.success is False
+        assert result.metadata.get("error_type") == "syntax"
+
+    def test_execute_runtime_error(self):
+        """Test runtime error handling."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("python", "1/0")
+        assert result.success is False
+        assert result.metadata.get("error_type") == "runtime"
+        assert "ZeroDivisionError" in result.error
+
+    def test_execute_timeout(self):
+        """Test timeout handling."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("python", "while True: pass", timeout=1)
+        assert result.success is False
+        assert result.metadata.get("timeout") is True
+        assert result.metadata.get("error_type") == "runtime"
+
+    def test_execute_custom_timeout_override(self):
+        """Test timeout parameter overrides config."""
+        config = SandboxConfig(backend="monty", timeout_seconds=999)
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("python", "while True: pass", timeout=1)
+        assert result.success is False
+        assert result.metadata.get("timeout") is True
+
+    def test_execute_permissions_ignored(self):
+        """Test that permissions are ignored (not supported in Monty)."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+        permissions = SandboxPermissions(allow_read=["/tmp"], allow_net=True)
+
+        result = sandbox.execute("python", "print('hello')", permissions=permissions)
+        assert result.success is True
+
+    def test_execute_partial_output_on_error(self):
+        """Test partial output is captured on error."""
+        config = SandboxConfig(backend="monty")
+        sandbox = MontySandbox(config)
+
+        result = sandbox.execute("python", "print('before')\n1/0")
+        assert result.success is False
+        assert "before" in result.output
+        assert "ZeroDivisionError" in result.error
+
+
+class TestSandboxBackendMontyFactory:
+    """Tests for factory with Monty backend."""
+
+    def test_factory_creates_monty(self):
+        """Test factory creates MontySandbox for 'monty' backend."""
+        config = SandboxConfig(backend="monty")
+        backend = get_sandbox_backend(config)
+        assert isinstance(backend, MontySandbox)
+
+    def test_monty_config_accepted(self):
+        """Test SandboxConfig accepts 'monty' backend."""
+        config = SandboxConfig(backend="monty")
+        assert config.backend == "monty"

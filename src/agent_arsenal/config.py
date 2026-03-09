@@ -304,7 +304,7 @@ def load_sandbox_config() -> SandboxConfig:
     # Parse backend
     backend = sandbox_data.get("backend", "deno")
     # Validate backend
-    if backend not in ("deno", "llm-sandbox"):
+    if backend not in ("deno", "llm-sandbox", "monty"):
         backend = "deno"  # Fall back to default
 
     # Check backend availability - if not available, warn and disable
@@ -320,8 +320,9 @@ def load_sandbox_config() -> SandboxConfig:
     if not executor.check_available():
         logger.warning(
             f"{executor.get_backend_name().title()} is not installed. Sandbox will be disabled. "
-            "Install via: curl -fsSL https://deno.land/x/install/install.sh | sh (for Deno) "
-            "or pip install 'llm-sandbox[docker]' (for llm-sandbox)"
+            "Install via: curl -fsSL https://deno.land/x/install/install.sh | sh (for Deno), "
+            "pip install 'llm-sandbox[docker]' (for llm-sandbox), "
+            "or pip install pydantic-monty (for Monty)"
         )
         return SandboxConfig(enabled=False)
 
