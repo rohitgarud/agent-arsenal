@@ -21,7 +21,7 @@ monty = ["pydantic-monty>=0.0.7"]
 arsenal = "agent_arsenal.main:cli"
 
 [build-system]
-requires = ["uv_build>=0.8.14,<0.9.0"]
+requires = ["uv_build>=0.8.14,<0.12.0"]
 build-backend = "uv_build"
 
 [tool.uv.sources]
